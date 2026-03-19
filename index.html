@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MTKS Price Widget</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    .widget {
+      max-width: 400px;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .price-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #eee;
+    }
+    .price-label {
+      font-weight: bold;
+      color: #333;
+    }
+    .price-value {
+      color: #2c3e50;
+    }
+    .loading {
+      text-align: center;
+      color: #7f8c8d;
+      font-style: italic;
+    }
+    .error {
+      color: #e74c3c;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="widget">
+    <h1>Цены MTKS</h1>
+    <div id="prices-container">
+      <div class="loading">Загрузка цен...</div>
+    </div>
+  </div>
+
+  <script type="module">
+    import CONFIG from './config.js';
+    import WavesApiClient from './utils/apiclient.js';
+
+    async function initApp() {
+      try {
+        const apiClient = new WavesApiClient();
+        const prices = await apiClient.getCurrentPrices();
+        updatePricesDisplay(prices);
+      } catch (error) {
+        console.error('Ошибка инициализации приложения:', error);
+        showError('Ошибка загрузки данных: ' + error.message);
+      }
+    }
+
+    function updatePricesDisplay(prices) {
+      const container = document.getElementById('prices-container');
+      container.innerHTML = `
+        <div class="price-item">
+          <span class="price-label">Базовая цена:</span>
+          <span class="price-value">${(prices.basePrice / 1000000).toFixed(6)} MTKS</span>
+        </div>
+        <div class="price-item">
+          <span class="price-label">Цена покупки:</span>
+          <span class="price-value">${(prices.buyPrice / 1000000).toFixed(6)} MTKS</span>
+        </div>
+        <div class="price-item">
+          <span class="price-label">Цена продажи:</span>
+          <span class="price-value">${(prices.sellPrice / 1000000).toFixed(6)} MTKS</span>
+        </div>
+      `;
+    }
+
+    function showError(message) {
+      const container = document.getElementById('prices-container');
+      container.innerHTML = `<div class="error">${message}</div>`;
+    }
+
+    document.addEventListener('DOMContentLoaded', initApp);
+  </script>
+</body>
+</html>
