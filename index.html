@@ -3,93 +3,305 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MTKS Price Widget</title>
+  <title>MTKS — Торговля MTKS и Rome</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
+    * {
+      box-sizing: border-box;
       margin: 0;
-      padding: 20px;
-      background-color: #f5f5f5;
+      padding: 0;
     }
-    .widget {
-      max-width: 400px;
-      margin: 0 auto;
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #333;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
       background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+      margin-bottom: 30px;
+    }
+
+    .section {
+      margin-bottom: 30px;
       padding: 20px;
+      border: 1px solid #eee;
       border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     }
-    .price-item {
-      display: flex;
-      justify-content: space-between;
-      padding: 10px 0;
-      border-bottom: 1px solid #eee;
+
+    .wallet-section {
+      background: #f8f9fa;
     }
+
+    .prices-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 15px;
+    }
+
+    .price-card {
+      text-align: center;
+      padding: 15px;
+      background: #e9ecef;
+      border-radius: 8px;
+    }
+
     .price-label {
       font-weight: bold;
-      color: #333;
+      color: #495057;
+      margin-bottom: 5px;
     }
+
     .price-value {
+      font-size: 1.2em;
+      color: #007bff;
+    }
+
+    .trade-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+    }
+
+    .trade-card {
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+
+    .trade-title {
+      text-align: center;
+      margin-bottom: 15px;
       color: #2c3e50;
     }
-    .loading {
-      text-align: center;
-      color: #7f8c8d;
-      font-style: italic;
+
+    .input-group {
+      margin-bottom: 15px;
     }
-    .error {
-      color: #e74c3c;
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+
+    input[type="number"] {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 1em;
+    }
+
+    .estimate {
       text-align: center;
+      margin: 10px 0;
+      font-style: italic;
+      color: #6c757d;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1em;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background: #0056b3;
+    }
+
+    .status {
+      text-align: center;
+      padding: 10px;
+      margin-top: 10px;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+
+    .status-loading {
+      background: #fff3cd;
+      color: #856404;
+    }
+
+    .status-success {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .status-error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .wallet-prompt p,
+    .wallet-info p {
+      margin: 10px 0;
     }
   </style>
 </head>
 <body>
-  <div class="widget">
-    <h1>Цены MTKS</h1>
-    <div id="prices-container">
-      <div class="loading">Загрузка цен...</div>
+  <div class="container">
+    <h1>MTKS Торговая Платформа</h1>
+
+    <!-- Раздел кошелька -->
+    <div class="section wallet-section">
+      <div id="wallet-section">
+        <!-- Здесь будет отображаться информация о кошельке или приглашение подключить его -->
+      </div>
+    </div>
+
+    <!-- Раздел цен -->
+    <div class="section prices-section">
+      <div class="price-card">
+        <div class="price-label">Базовая цена</div>
+        <div id="base-price" class="price-value">Загрузка...</div>
+      </div>
+      <div class="price-card">
+        <div class="price-label">Цена покупки</div>
+        <div id="buy-price" class="price-value">Загрузка...</div>
+      </div>
+      <div class="price-card">
+        <div class="price-label">Цена продажи</div>
+        <div id="sell-price" class="price-value">Загрузка...</div>
+      </div>
+    </div>
+
+    <!-- Раздел торговли -->
+    <div class="section trade-section">
+      <!-- Покупка MTKS -->
+      <div class="trade-card">
+        <h2 class="trade-title">Купить MTKS</h2>
+        <div class="input-group">
+          <label for="buy-amount">Сумма в Rome:</label>
+          <input
+            type="number"
+            id="buy-amount"
+            placeholder="Введите сумму Rome"
+            step="0.000001"
+            min="0"
+          >
+        </div>
+        <div id="buy-estimate" class="estimate">
+          <!-- Здесь будет отображаться оценка покупки -->
+        </div>
+        <button id="buy-btn">Купить MTKS</button>
+        <p id="buy-status" class="status">
+          <!-- Здесь будут отображаться статусы транзакций покупки -->
+        </p>
+      </div>
+
+      <!-- Продажа MTKS -->
+      <div class="trade-card">
+        <h2 class="trade-title">Продать MTKS</h2>
+        <div class="input-group">
+          <label for="sell-amount">Количество MTKS:</label>
+          <input
+            type="number"
+            id="sell-amount"
+            placeholder="Введите количество MTKS"
+            step="0.00000001"
+            min="0"
+          >
+        </div>
+        <div id="sell-estimate" class="estimate">
+          <!-- Здесь будет отображаться оценка продажи -->
+        </div>
+        <button id="sell-btn">Продать MTKS</button>
+        <p id="sell-status" class="status">
+          <!-- Здесь будут отображаться статусы транзакций продажи -->
+        </p>
+      </div>
     </div>
   </div>
+<div class="price-display">
+  <h3>Цены MTKS</h3>
+  <p>Покупка: <span id="buy-price">Загрузка...</span> Rome</p>
+  <p>Продажа: <span id="sell-price">Загрузка...</span> Rome</p>
+</div>
 
-  <script type="module">
-    import CONFIG from './config.js';
-    import WavesApiClient from './utils/apiclient.js';
+<div class="controls">
+  <button id="refresh-prices">Обновить цены сейчас</button>
+  <button id="toggle-auto-update">Выключить автообновление</button>
+</div>
+<div class="trading-section">
+  <h3>Торговля MTKS</h3>
 
-    async function initApp() {
-      try {
-        const apiClient = new WavesApiClient();
-        const prices = await apiClient.getCurrentPrices();
-        updatePricesDisplay(prices);
-      } catch (error) {
-        console.error('Ошибка инициализации приложения:', error);
-        showError('Ошибка загрузки данных: ' + error.message);
-      }
-    }
+  <div class="balance-info">
+    <p>Баланс MTKS: <span id="mtks-balance">Загрузка...</span></p>
+    <p>Баланс Rome: <span id="rome-balance">Загрузка...</span></p>
+  </div>
 
-    function updatePricesDisplay(prices) {
-      const container = document.getElementById('prices-container');
-      container.innerHTML = `
-        <div class="price-item">
-          <span class="price-label">Базовая цена:</span>
-          <span class="price-value">${(prices.basePrice / 1000000).toFixed(6)} MTKS</span>
-        </div>
-        <div class="price-item">
-          <span class="price-label">Цена покупки:</span>
-          <span class="price-value">${(prices.buyPrice / 1000000).toFixed(6)} MTKS</span>
-        </div>
-        <div class="price-item">
-          <span class="price-label">Цена продажи:</span>
-          <span class="price-value">${(prices.sellPrice / 1000000).toFixed(6)} MTKS</span>
-        </div>
-      `;
-    }
+  <div class="buy-form">
+    <h4>Купить MTKS</h4>
+    <label>Количество MTKS:
+      <input type="number" id="buy-amount" min="0.001" step="0.001" placeholder="0.000">
+    </label>
+    <p>К оплате: <span id="buy-total">0.000000</span> Rome</p>
+    <button id="buy-button" disabled>Купить</button>
+  </div>
 
-    function showError(message) {
-      const container = document.getElementById('prices-container');
-      container.innerHTML = `<div class="error">${message}</div>`;
-    }
+  <div class="sell-form">
+    <h4>Продать MTKS</h4>
+    <label>Количество MTKS:
+      <input type="number" id="sell-amount" min="0.001" step="0.001" placeholder="0.000">
+    </label>
+    <p>Вы получите: <span id="sell-total">0.000000</span> Rome</p>
+    <button id="sell-button" disabled>Продать</button>
+  </div>
+</div>
 
-    document.addEventListener('DOMContentLoaded', initApp);
-  </script>
+<div id="connection-error" style="display: none; color: red;">
+  Ошибка подключения к нодам блокчейна. Проверьте интернет‑соединение.
+</div>
+
+  <!-- Подключение скриптов -->
+  <script type="module" src="./app.js"></script>
+
+ <div class="trading-section" style="margin-top: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
+  <h3>Торговля MTKS</h3>
+
+  <div class="balance-info" style="margin-bottom: 15px;">
+    <p>Баланс MTKS: <span id="mtks-balance">Загрузка...</span></p>
+    <p>Баланс Rome: <span id="rome-balance">Загрузка...</span></p>
+  </div>
+
+  <div class="buy-form">
+    <h4>Купить MTKS</h4>
+    <label>Количество MTKS:
+      <input type="number" id="buy-amount" min="0.001" step="0.001" placeholder="0.000" style="width: 100px; margin-left: 10px;">
+    </label>
+    <p>К оплате: <span id="buy-total">0.000000</span> Rome</p>
+    <button id="buy-button" disabled style="background: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: not-allowed;">Купить</button>
+  </div>
+
+  <hr style="margin: 20px 0;">
+
+  <div class="sell-form">
+    <h4>Продать MTKS</h4>
+    <label>Количество MTKS:
+      <input type="number" id="sell-amount" min="0.001" step="0.001" placeholder="0.000" style="width: 100px; margin-left: 10px;">
+    </label>
+    <p>Вы получите: <span id="sell-total">0.000000</span> Rome</p>
+    <button id="sell-button" disabled style="background: #f44336; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: not-allowed;">Продать</button>
+  </div>
+</div>
+
 </body>
 </html>
