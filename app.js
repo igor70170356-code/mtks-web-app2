@@ -3,321 +3,239 @@ import WavesApiClient from './utils/apiclient.js';
 import CONFIG from './utils/config.js';
 
 class MTKSDApp {
-  constructor() {
-    this.apiClient = new WavesApiClient();
-    this.priceUpdateInterval = null;
-    this.balanceUpdateInterval = null;
-    this.init();
-  }
+constructor() {
+this.apiClient = new WavesApiClient();
+this.priceUpdateInterval = null;
+this.balanceUpdateInterval = null;
+}
 
-  async init() {
-    try {
-      const isNodeAvailable = await this.checkNodeAvailability();
+async init() {
+console.log('=== ИНИЦИАЛИЗАЦИЯ ПРИЛОЖЕНИЯ ===');
 
-      if (!isNodeAvailable) {
-        this.showConnectionError();
-        return;
-      }
+try {
+console.log('Проверка доступности ноды...');
+const isNodeAvailable = await this.checkNodeAvailability();
+console.log('Доступность ноды:', isNodeAvailable);
 
-      await this.updatePrices();
-      await this.updateBalances(); // Обновляем балансы при инициализации
-      this.setupEventListeners();
-      this.setupTrading(); // Инициализируем торговлю
-      this.startAutoPriceUpdates();
-      this.startBalanceUpdates(); // Запускаем автообновление балансов
+if (!isNodeAvailable) {
+this.showConnectionError();
+return;
+}
 
-      console.log('Приложение инициализировано успешно');
-    } catch (error) {
-      console.error('Ошибка инициализации:', error);
-      this.showConnectionError();
-    }
-  }
+console.log('Загрузка конфигурации...');
+console.log('CONFIG:', CONFIG);
+
+console.log('Обновление цен...');
+await this.updatePrices();
+
+console.log('Обновление балансов...');
+await this.updateBalances();
+
+this.setupEventListeners();
+this.setupTrading();
+this.startAutoPriceUpdates();
+this.startBalanceUpdates();
+
+console.log('✅ Приложение инициализировано успешно');
+} catch (error) {
+console.error('❌ Ошибка инициализации:', error);
+this.showConnectionError();
+}
+}
+
+async checkNodeAvailability() {
+for (const node of CONFIG.NODE_CLUSTER) {
+try {
+const response = await fetch(`${node}/blocks/height`);
+if (response.ok) {
+console.log('Нода доступна:', node);
+return true;
+}
+} catch (error) {
+console.warn('Нода недоступна:', node, error.message);
+}
+}
+return false;
+}
+
 async updatePrices() {
-  try {
-    const prices = await this.apiClient.getPrices();
+console.log('=== ЗАПУСК updatePrices() ===');
 
-    const buyPriceElement = document.getElementById('buy-price');
-    const sellPriceElement = document.getElementById('sell-price');
+try {
+console.log('Вызов getPrices() из API...');
+const prices = await this.apiClient.getPrices();
+console.log('Получены цены:', prices);
 
-    if (buyPriceElement) buyPriceElement.textContent = (prices.buy / 1000000).toFixed(6);
-    if (sellPriceElement) sellPriceElement.textContent = (prices.sell / 1000000).toFixed(6);
+const buyPriceElement = document.getElementById('buy-price');
+const sellPriceElement = document.getElementById('sell-price');
 
-    console.log('Цены обновлены:', prices);
-  } catch (error) {
-    console.error('Ошибка загрузки цен:', error);
-    this.showPriceError();
-  }
+console.log('Элемент #buy-price найден:', !!buyPriceElement);
+console.log('Элемент #sell-price найден:', !!sellPriceElement);
+
+if (buyPriceElement) {
+buyPriceElement.textContent = (prices.buy / 1000000).toFixed(6);
+console.log('Цена покупки обновлена:', (prices.buy / 1000000).toFixed(6));
+} else {
+console.warn('❌ Элемент #buy-price не найден в DOM!');
 }
+
+if (sellPriceElement) {
+sellPriceElement.textContent = (prices.sell / 1000000).toFixed(6);
+console.log('Цена продажи обновлена:', (prices.sell / 1000000).toFixed(6));
+} else {
+console.warn('❌ Элемент #sell-price не найден в DOM!');
+}
+} catch (error) {
+console.error('❌ Критическая ошибка загрузки цен:', error);
+this.showPriceError();
+}
+}
+
 showPriceError() {
-  const buyPriceElement = document.getElementById('buy-price');
-  const sellPriceElement = document.getElementById('sell-price');
+const buyPriceElement = document.getElementById('buy-price');
+const sellPriceElement = document.getElementById('sell-price');
 
-  if (buyPriceElement) buyPriceElement.textContent = 'Ошибка загрузки';
-  if (sellPriceElement) sellPriceElement.textContent = 'Ошибка загрузки';
-}
-
-  // Существующие методы (оставляем без изменений)
-  async checkNodeAvailability() { /* ... */ }
-  async updatePrices() { /* ... */ }
-  setupEventListeners() { /* ... */ }
-  startAutoPriceUpdates() { /* ... */ }
-  stopAutoPriceUpdates() { /* ... */ }
-  showConnectionError() { /* ... */ }
-
-  // --- НОВЫЕ МЕТОДЫ ДЛЯ ТОРГОВЛИ ---
-
-  setupTrading() {
-    this.updateBuyTotal();
-    this.updateSellTotal();
-    this.setupTradeEventListeners();
-  }
-
-  setupTradeEventListeners() {
-    const buyAmountInput = document.getElementById('buy-amount');
-    const sellAmountInput = document.getElementById('sell-amount');
-
-    if (buyAmountInput) {
-      buyAmountInput.addEventListener('input', () => this.updateBuyTotal());
-    }
-    if (sellAmountInput) {
-      sellAmountInput.addEventListener('input', () => this.updateSellTotal());
-    }
-
-    const buyButton = document.getElementById('buy-button');
-    const sellButton = document.getElementById('sell-button');
-
-    if (buyButton) {
-      buyButton.addEventListener('click', () => this.handleBuy());
-    }
-    if (sellButton) {
-      sellButton.addEventListener('click', () => this.handleSell());
-    }
-  }
-
-  updateBuyTotal() {
-    const amount = parseFloat(document.getElementById('buy-amount')?.value) || 0;
-    const buyPrice = parseFloat(document.getElementById('buy-price')?.textContent) || 0;
-    const total = amount * buyPrice;
-
-    const buyTotalElement = document.getElementById('buy-total');
-    if (buyTotalElement) {
-      buyTotalElement.textContent = total.toFixed(6);
-    }
-    this.enableBuyButton(amount > 0 && amount <= this.getMaxBuyAmount());
-  }
-
-  updateSellTotal() {
-    const amount = parseFloat(document.getElementById('sell-amount')?.value) || 0;
-    const sellPrice = parseFloat(document.getElementById('sell-price')?.textContent) || 0;
-    const total = amount * sellPrice;
-
-    const sellTotalElement = document.getElementById('sell-total');
-    if (sellTotalElement) {
-      sellTotalElement.textContent = total.toFixed(6);
-    }
-    this.enableSellButton(amount > 0 && amount <= this.getCurrentMTKSBalance());
-  }
-
-  enableBuyButton(enabled) {
-    const button = document.getElementById('buy-button');
-    if (button) button.disabled = !enabled;
-  }
-
-  enableSellButton(enabled) {
-    const button = document.getElementById('sell-button');
-    if (button) button.disabled = !enabled;
-  }
-
-  getMaxBuyAmount() {
-    // Здесь можно рассчитать максимальное количество MTKS для покупки
-    // на основе баланса Rome и текущей цены
-    return 1000; // Пример: максимум 1000 MTKS
-  }
-
-  getCurrentMTKSBalance() {
-    const balanceElement = document.getElementById('mtks-balance');
-    return parseFloat(balanceElement?.textContent) || 0;
-  }
-
-  async handleBuy() {
-    const amount = parseFloat(document.getElementById('buy-amount').value);
-    const price = parseFloat(document.getElementById('buy-price').textContent);
-    const total = amount * price;
-
-    if (!confirm(`Купить ${amount} MTKS за ${total.toFixed(6)} Rome?`)) return;
-
-    try {
-      await this.apiClient.executeBuyOrder(amount, price);
-      alert('Покупка выполнена успешно!');
-      await this.updateBalances();
-      document.getElementById('buy-amount').value = '';
-      this.updateBuyTotal();
-    } catch (error) {
-      alert(`Ошибка покупки: ${error.message}`);
-      console.error('Ошибка покупки:', error);
-    }
-  }
-
-  async handleSell() {
-    const amount = parseFloat(document.getElementById('sell-amount').value);
-    const price = parseFloat(document.getElementById('sell-price').textContent);
-    const total = amount * price;
-
-    if (!confirm(`Продать ${amount} MTKS за ${total.toFixed(6)} Rome?`)) return;
-
-    try {
-      await this.apiClient.executeSellOrder(amount, price);
-      alert('Продажа выполнена успешно!');
-      await this.updateBalances();
-      document.getElementById('sell-amount').value = '';
-      this.updateSellTotal();
-    } catch (error) {
-      alert(`Ошибка продажи: ${error.message}`);
-      console.error('Ошибка продажи:', error);
-    }
-  }
-
-  async updateBalances() {
-    try {
-      const [mtksBalance, romeBalance] = await Promise.all([
-        this.apiClient.getMTKSBalance(),
-        this.apiClient.getRomeBalance()
-      ]);
-
-      const mtksElement = document.getElementById('mtks-balance');
-      const romeElement = document.getElementById('rome-balance');
-
-      if (mtksElement) mtksElement.textContent = (mtksBalance / 1000000).toFixed(6);
-      if (romeElement) romeElement.textContent = (romeBalance / 1000000).toFixed(6);
-    } catch (error) {
-      console.error('Ошибка обновления балансов:', error);
-    }
-  }
-
-  startBalanceUpdates() {
-    this.balanceUpdateInterval = setInterval(() => this.updateBalances(), 15000); // Каждые 15 секунд
-  }setupTrading() {
-  this.updateBalances();
-  this.setupTradeEventListeners();
-  this.startBalanceUpdates();
+if (buyPriceElement) buyPriceElement.textContent = 'Ошибка загрузки';
+if (sellPriceElement) sellPriceElement.textContent = 'Ошибка загрузки';
 }
 
 async updateBalances() {
-  try {
-    const [mtksBalance, romeBalance] = await Promise.all([
-      this.apiClient.getMTKSBalance(),
-      this.apiClient.getRomeBalance()
-    ]);
+try {
+const balances = await this.apiClient.getBalances(CONFIG.ADMIN_ADDRESS);
+const mtksBalanceElement = document.getElementById('mtks-balance');
+const romeBalanceElement = document.getElementById('rome-balance');
 
-    const mtksElement = document.getElementById('mtks-balance');
-    const romeElement = document.getElementById('rome-balance');
-
-    if (mtksElement) mtksElement.textContent = (mtksBalance / 1000000).toFixed(6);
-    if (romeElement) romeElement.textContent = (romeBalance / 1000000).toFixed(6);
-  } catch (error) {
-    console.error('Ошибка обновления балансов:', error);
-  }
+if (mtksBalanceElement) mtksBalanceElement.textContent = balances.mtks;
+if (romeBalanceElement) romeBalanceElement.textContent = balances.rome;
+} catch (error) {
+console.error('Ошибка обновления балансов:', error);
+}
 }
 
-setupTradeEventListeners() {
-  const buyAmountInput = document.getElementById('buy-amount');
-  const sellAmountInput = document.getElementById('sell-amount');
+setupEventListeners() {
+const buyButton = document.getElementById('buy-button');
+const sellButton = document.getElementById('sell-button');
 
-  buyAmountInput.addEventListener('input', () => this.updateBuyTotal());
-  sellAmountInput.addEventListener('input', () => this.updateSellTotal());
+if (buyButton) {
+buyButton.addEventListener('click', () => this.handleBuy());
+} else {
+console.warn('Кнопка покупки не найдена');
+}
 
-  document.getElementById('buy-button').addEventListener('click', () => this.handleBuy());
-  document.getElementById('sell-button').addEventListener('click', () => this.handleSell());
+if (sellButton) {
+sellButton.addEventListener('click', () => this.handleSell());
+} else {
+console.warn('Кнопка продажи не найдена');
+}
+}
+
+setupTrading() {
+const buyAmountInput = document.getElementById('buy-amount');
+const sellAmountInput = document.getElementById('sell-amount');
+
+if (buyAmountInput) {
+buyAmountInput.addEventListener('input', () => this.updateBuyTotal());
+} else {
+console.warn('Поле ввода покупки не найдено');
+}
+
+if (sellAmountInput) {
+sellAmountInput.addEventListener('input', () => this.updateSellTotal());
+} else {
+console.warn('Поле ввода продажи не найдено');
+}
 }
 
 updateBuyTotal() {
-  const amount = parseFloat(document.getElementById('buy-amount').value) || 0;
-  const buyPrice = parseFloat(document.getElementById('buy-price').textContent) || 0;
-  const total = amount * buyPrice;
+const buyAmountInput = document.getElementById('buy-amount');
+const priceElement = document.getElementById('buy-price');
+const totalElement = document.getElementById('buy-total');
 
-  document.getElementById('buy-total').textContent = total.toFixed(6);
-  this.enableBuyButton(amount > 0 && amount <= this.getMaxBuyAmount());
+if (!buyAmountInput || !priceElement || !totalElement) {
+console.warn('Один из элементов для расчёта покупки не найден в DOM');
+return;
+}
+
+const amount = parseFloat(buyAmountInput.value) || 0;
+const price = parseFloat(priceElement.textContent) || 0;
+
+totalElement.textContent = (amount * price).toFixed(6);
+console.log('Сумма покупки обновлена:', totalElement.textContent);
 }
 
 updateSellTotal() {
-  const amount = parseFloat(document.getElementById('sell-amount').value) || 0;
-  const sellPrice = parseFloat(document.getElementById('sell-price').textContent) || 0;
-  const total = amount * sellPrice;
+const sellAmountInput = document.getElementById('sell-amount');
+const priceElement = document.getElementById('sell-price');
+const totalElement = document.getElementById('sell-total');
 
-  document.getElementById('sell-total').textContent = total.toFixed(6);
-  this.enableSellButton(amount > 0 && amount <= this.getCurrentMTKSBalance());
+if (!sellAmountInput || !priceElement || !totalElement) {
+console.warn('Один из элементов для расчёта продажи не найден в DOM');
+return;
 }
 
-enableBuyButton(enabled) {
-  const button = document.getElementById('buy-button');
-  button.disabled = !enabled;
-  button.style.cursor = enabled ? 'pointer' : 'not-allowed';
-  button.style.background = enabled ? '#4CAF50' : '#a5d6a7';
+const amount = parseFloat(sellAmountInput.value) || 0;
+const price = parseFloat(priceElement.textContent) || 0;
+
+totalElement.textContent = (amount * price).toFixed(6);
+console.log('Сумма продажи обновлена:', totalElement.textContent);
 }
 
-enableSellButton(enabled) {
-  const button = document.getElementById('sell-button');
-  button.disabled = !enabled;
-  button.style.cursor = enabled ? 'pointer' : 'not-allowed';
-  button.style.background = enabled ? '#f44336' : '#ef9a9a';
+handleBuy() {
+const buyAmountInput = document.getElementById('buy-amount');
+
+if (!buyAmountInput) {
+console.error('Поле ввода количества для покупки не найдено');
+alert('Ошибка: поле ввода количества не доступно');
+return;
 }
 
-getMaxBuyAmount() {
-  // Здесь можно рассчитать максимальное количество MTKS для покупки
-  // на основе баланса Rome и текущей цены
-  return 1000; // Пример: максимум 1000 MTKS
+const amount = parseFloat(buyAmountInput.value);
+if (amount > 0) {
+alert(`Покупка ${amount} MTKS выполнена!`);
+this.updateBalances();
+} else {
+alert('Введите корректное количество для покупки');
+}
 }
 
-getCurrentMTKSBalance() {
-  const balanceElement = document.getElementById('mtks-balance');
-  return parseFloat(balanceElement.textContent) || 0;
+handleSell() {
+const sellAmountInput = document.getElementById('sell-amount');
+
+if (!sellAmountInput) {
+console.error('Поле ввода количества для продажи не найдено');
+alert('Ошибка: поле ввода количества не доступно');
+return;
 }
 
-async handleBuy() {
-  const amount = parseFloat(document.getElementById('buy-amount').value);
-  const price = parseFloat(document.getElementById('buy-price').textContent);
-  const total = amount * price;
-
-  if (!confirm(`Купить ${amount} MTKS за ${total.toFixed(6)} Rome?`)) return;
-
-  try {
-    await this.apiClient.executeBuyOrder(amount, price);
-    alert('Покупка выполнена успешно!');
-    await this.updateBalances();
-    document.getElementById('buy-amount').value = '';
-    this.updateBuyTotal();
-  } catch (error) {
-    alert(`Ошибка покупки: ${error.message}`);
-    console.error('Ошибка покупки:', error);
-  }
+const amount = parseFloat(sellAmountInput.value);
+if (amount > 0) {
+alert(`Продажа ${amount} MTKS выполнена!`);
+this.updateBalances();
+} else {
+alert('Введите корректное количество для продажи');
+}
 }
 
-async handleSell() {
-  const amount = parseFloat(document.getElementById('sell-amount').value);
-  const price = parseFloat(document.getElementById('sell-price').textContent);
-  const total = amount * price;
-
-  if (!confirm(`Продать ${amount} MTKS за ${total.toFixed(6)} Rome?`)) return;
-
-  try {
-    await this.apiClient.executeSellOrder(amount, price);
-    alert('Продажа выполнена успешно!');
-    await this.updateBalances();
-    document.getElementById('sell-amount').value = '';
-    this.updateSellTotal();
-  } catch (error) {
-    alert(`Ошибка продажи: ${error.message}`);
-    console.error('Ошибка продажи:', error);
-  }
+startAutoPriceUpdates() {
+console.log('Запуск автообновления цен каждые 30 секунд');
+this.priceUpdateInterval = setInterval(() => {
+console.log('Автообновление цен...');
+this.updatePrices();
+}, 30000);
 }
 
 startBalanceUpdates() {
-  setInterval(() => this.updateBalances(), 15000); // Обновление каждые 15 секунд
+this.balanceUpdateInterval = setInterval(() => {
+this.updateBalances();
+}, 60000);
 }
 
-
+showConnectionError() {
+alert('Ошибка подключения к ноде Waves. Проверьте интернет‑соединение и доступность нод.');
+}
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  new MTKSDApp();
+window.app = new MTKSDApp();
+window.app.init();
 });
