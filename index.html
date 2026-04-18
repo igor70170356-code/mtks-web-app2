@@ -45,47 +45,55 @@
       background: #f8f9fa;
     }
 
-    .wallet-input {
+    .wallet-actions {
       display: flex;
       gap: 10px;
       margin-bottom: 15px;
       flex-wrap: wrap;
     }
 
-    .wallet-input input {
+    .wallet-actions button {
       flex: 1;
       padding: 12px;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      font-size: 1em;
-    }
-
-    .wallet-input button {
-      padding: 12px 24px;
-      background: #28a745;
-      color: white;
+      font-weight: bold;
       border: none;
       border-radius: 8px;
       cursor: pointer;
-      font-weight: bold;
     }
 
-    .seed-section {
+    #connect-wx {
+      background: #007bff;
+      color: white;
+    }
+
+    #connect-wx:hover {
+      background: #0056b3;
+    }
+
+    .manual-input {
       margin-top: 15px;
       padding: 15px;
-      background: #fff3cd;
+      background: #f8f9fa;
       border-radius: 8px;
-      border: 1px solid #ffc107;
+      border: 1px solid #ddd;
     }
 
-    .seed-section textarea {
-      width: 100%;
+    .manual-input .input-group {
+      display: flex;
+      gap: 10px;
+    }
+
+    .manual-input input {
+      flex: 1;
       padding: 10px;
       border: 1px solid #ddd;
-      border-radius: 4px;
-      font-family: monospace;
-      font-size: 14px;
-      margin-top: 10px;
+      border-radius: 6px;
+    }
+
+    .manual-input button {
+      width: auto;
+      padding: 10px 20px;
+      background: #28a745;
     }
 
     .wallet-info {
@@ -279,18 +287,21 @@
 
     <div class="section wallet-section">
       <h3>Подключение кошелька</h3>
-      <div class="wallet-input">
-        <input type="text" id="wallet-address" placeholder="Введите адрес Waves (начинается с 3P...)" value="">
-        <button id="connect-wallet">Показать баланс</button>
+      <div class="wallet-actions">
+        <button id="connect-wx">🔐 Войти через WX Network (email/пароль)</button>
       </div>
-      <div id="wallet-info" class="wallet-info" style="display: none;"></div>
       
-      <div class="seed-section">
-        <strong>🔐 Для покупки/продажи введите seed-фразу:</strong>
-        <textarea id="seed-input" rows="3" placeholder="Введите seed-фразу (12 слов)"></textarea>
+      <div class="manual-input">
+        <div class="input-group">
+          <input type="text" id="wallet-address" placeholder="Или введите Waves-адрес вручную (3P...)">
+          <button id="connect-wallet">Показать баланс</button>
+        </div>
       </div>
+      
+      <div id="wallet-info" class="wallet-info" style="display: none;"></div>
       <div class="info-note">
-        ⚠️ Seed-фраза не сохраняется и никуда не отправляется. Транзакция подписывается в вашем браузере.
+        🔐 WX Network: вход по email/паролю — откроется окно авторизации<br>
+        📝 Ручной ввод: только просмотр баланса (без возможности покупки/продажи)
       </div>
     </div>
 
@@ -358,9 +369,19 @@
     <div id="connection-error" class="connection-error"></div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@waves/waves-transactions@4.2.3/dist/waves-transactions.umd.js"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "@waves/signer": "https://cdn.skypack.dev/@waves/signer",
+        "@waves.exchange/provider-cloud": "https://cdn.skypack.dev/@waves.exchange/provider-cloud"
+      }
+    }
+  </script>
 
-  <script>
+  <script type="module">
+    import { Signer } from '@waves/signer';
+    import { ProviderCloud } from '@waves.exchange/provider-cloud';
+
     // ========== КОНФИГУРАЦИЯ ==========
     const CONFIG = {
       NODE_URL: 'https://nodes.wavesnodes.com',
@@ -374,6 +395,7 @@
     };
 
     let currentAddress = '';
+    let signer = null;
     let autoUpdateEnabled = true;
     let priceUpdateInterval = null;
     let currentPrices = { base: 1.05, buy: 1.05, sell: 1.0395 };
@@ -506,7 +528,42 @@
     }
 
     // ========== ПОДКЛЮЧЕНИЕ КОШЕЛЬКА ==========
-    function connectWallet() {
+    
+    // Подключение через WX Network (ProviderCloud) — вход по email/паролю
+    async function connectWX() {
+      try {
+        console.log('Подключение через WX Network (ProviderCloud)...');
+        
+        const newSigner = new Signer({ NODE_URL: CONFIG.NODE_URL });
+        // ProviderCloud — облачный провайдер для входа по email/паролю через wx.network[citation:4][citation:5]
+        newSigner.setProvider(new ProviderCloud());
+        
+        // Авторизация — откроется окно wx.network для входа по email/паролю
+        const user = await newSigner.login();
+        currentAddress = user.address;
+        signer = newSigner;
+        
+        console.log('Подключено через WX Network, адрес:', currentAddress);
+        
+        const walletInfo = document.getElementById('wallet-info');
+        walletInfo.style.display = 'block';
+        walletInfo.innerHTML = `✅ Подключён WX Network: ${currentAddress.slice(0, 8)}...${currentAddress.slice(-6)}<br>🔓 Транзакции доступны`;
+        
+        await updateUI();
+        
+      } catch (error) {
+        console.error('Ошибка подключения WX Network:', error);
+        
+        if (error.message?.includes('rejected') || error.message?.includes('cancelled')) {
+          alert('Вход в WX Network не выполнен или отменён пользователем.');
+        } else {
+          alert(`Ошибка подключения WX Network: ${error.message || 'Не удалось подключиться'}`);
+        }
+      }
+    }
+
+    // Ручное подключение по адресу (только просмотр)
+    function connectManual() {
       const address = document.getElementById('wallet-address').value.trim();
       if (!address || !address.startsWith('3P') || address.length < 35) {
         alert('Введите корректный адрес Waves (начинается с 3P..., длина минимум 35 символов)');
@@ -514,14 +571,15 @@
       }
       
       currentAddress = address;
+      signer = null;
       const walletInfo = document.getElementById('wallet-info');
       walletInfo.style.display = 'block';
-      walletInfo.innerHTML = `✅ Подключён: ${address.slice(0, 8)}...${address.slice(-6)}`;
+      walletInfo.innerHTML = `✅ Подключён (только просмотр): ${address.slice(0, 8)}...${address.slice(-6)}<br>⚠️ Для покупки/продажи используйте WX Network`;
       
       updateUI();
     }
 
-    // ========== ТРАНЗАКЦИИ ==========
+    // ========== ТРАНЗАКЦИИ ЧЕРЕЗ WX NETWORK ==========
     async function executeBuy() {
       const amount = parseFloat(document.getElementById('buy-amount').value);
       if (!amount || amount <= 0) {
@@ -529,9 +587,8 @@
         return;
       }
       
-      const seed = document.getElementById('seed-input').value.trim();
-      if (!seed) {
-        setStatus('buy-status', 'Введите seed-фразу для подписи транзакции', 'error');
+      if (!signer) {
+        setStatus('buy-status', 'Сначала подключите WX Network (кнопка "Войти через WX Network")', 'error');
         return;
       }
       
@@ -544,34 +601,19 @@
         return;
       }
       
-      setStatus('buy-status', 'Подготовка транзакции...', 'pending');
+      setStatus('buy-status', 'Подтвердите транзакцию в окне WX Network...', 'pending');
       
       try {
-        const txData = {
-          type: 16,
-          version: 1,
-          dApp: CONFIG.CONTRACT_ID,
-          call: { function: 'buyMtks', args: [] },
-          payment: [{ assetId: CONFIG.ROME_ASSET_ID, amount: romeAtomic }],
-          fee: 500000,
-          feeAssetId: null,
-          timestamp: Date.now(),
-          chainId: 87
-        };
+        // Используем signer.invoke().broadcast() — стандартный способ[citation:1][citation:2][citation:3]
+        const [tx] = await signer
+          .invoke({
+            dApp: CONFIG.CONTRACT_ID,
+            call: { function: 'buyMtks', args: [] },
+            payment: [{ assetId: CONFIG.ROME_ASSET_ID, amount: romeAtomic }]
+          })
+          .broadcast();
         
-        const signedTx = Waves.signTransaction(txData, seed);
-        
-        const response = await fetch(`${CONFIG.NODE_URL}/transactions/broadcast`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(signedTx)
-        });
-        
-        const result = await response.json();
-        
-        if (!response.ok) throw new Error(result.message || 'Ошибка отправки');
-        
-        setStatus('buy-status', `✅ Куплено ${amount.toFixed(8)} MTKS! ID: ${result.id.slice(0, 8)}...`, 'success');
+        setStatus('buy-status', `✅ Куплено ${amount.toFixed(8)} MTKS! ID: ${tx.id.slice(0, 8)}...`, 'success');
         setTimeout(() => updateUI(), 3000);
       } catch (error) {
         console.error('Ошибка покупки:', error);
@@ -586,9 +628,8 @@
         return;
       }
       
-      const seed = document.getElementById('seed-input').value.trim();
-      if (!seed) {
-        setStatus('sell-status', 'Введите seed-фразу для подписи транзакции', 'error');
+      if (!signer) {
+        setStatus('sell-status', 'Сначала подключите WX Network (кнопка "Войти через WX Network")', 'error');
         return;
       }
       
@@ -600,34 +641,18 @@
         return;
       }
       
-      setStatus('sell-status', 'Подготовка транзакции...', 'pending');
+      setStatus('sell-status', 'Подтвердите транзакцию в окне WX Network...', 'pending');
       
       try {
-        const txData = {
-          type: 16,
-          version: 1,
-          dApp: CONFIG.CONTRACT_ID,
-          call: { function: 'sellMtks', args: [] },
-          payment: [{ assetId: CONFIG.MTKS_ASSET_ID, amount: mtksAtomic }],
-          fee: 500000,
-          feeAssetId: null,
-          timestamp: Date.now(),
-          chainId: 87
-        };
+        const [tx] = await signer
+          .invoke({
+            dApp: CONFIG.CONTRACT_ID,
+            call: { function: 'sellMtks', args: [] },
+            payment: [{ assetId: CONFIG.MTKS_ASSET_ID, amount: mtksAtomic }]
+          })
+          .broadcast();
         
-        const signedTx = Waves.signTransaction(txData, seed);
-        
-        const response = await fetch(`${CONFIG.NODE_URL}/transactions/broadcast`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(signedTx)
-        });
-        
-        const result = await response.json();
-        
-        if (!response.ok) throw new Error(result.message || 'Ошибка отправки');
-        
-        setStatus('sell-status', `✅ Продано ${amount.toFixed(8)} MTKS! ID: ${result.id.slice(0, 8)}...`, 'success');
+        setStatus('sell-status', `✅ Продано ${amount.toFixed(8)} MTKS! ID: ${tx.id.slice(0, 8)}...`, 'success');
         setTimeout(() => updateUI(), 3000);
       } catch (error) {
         console.error('Ошибка продажи:', error);
@@ -654,7 +679,8 @@
       console.log('Инициализация приложения...');
       updatePricesInUI();
       
-      document.getElementById('connect-wallet').addEventListener('click', connectWallet);
+      document.getElementById('connect-wx').addEventListener('click', connectWX);
+      document.getElementById('connect-wallet').addEventListener('click', connectManual);
       document.getElementById('refresh-prices').addEventListener('click', () => {
         if (currentAddress) {
           updateUI();
