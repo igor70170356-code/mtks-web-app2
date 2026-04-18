@@ -25,25 +25,44 @@
     h1 { text-align: center; color: #2c3e50; padding: 20px 20px 0; margin-bottom: 20px; }
     .section { padding: 20px; border-bottom: 1px solid #eee; }
     .wallet-section { background: #f8f9fa; }
-    .seed-section { margin-bottom: 15px; }
-    .seed-section textarea {
-      width: 100%;
-      padding: 12px;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      font-family: monospace;
-      font-size: 14px;
-      margin-bottom: 10px;
+    .auth-buttons {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
     }
-    .seed-section button {
-      width: 100%;
+    .auth-buttons button {
+      flex: 1;
       padding: 12px;
-      background: #6f42c1;
-      color: white;
+      font-weight: bold;
       border: none;
       border-radius: 8px;
       cursor: pointer;
-      font-weight: bold;
+    }
+    .btn-wx { background: #007bff; color: white; }
+    .btn-wx:hover { background: #0056b3; }
+    .btn-seed { background: #6f42c1; color: white; }
+    .btn-seed:hover { background: #5a32a3; }
+    .seed-section {
+      margin-top: 15px;
+      padding: 15px;
+      background: #fff3cd;
+      border-radius: 8px;
+      border: 1px solid #ffc107;
+      display: none;
+    }
+    .seed-section textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+    .seed-section button {
+      margin-top: 10px;
+      background: #6f42c1;
     }
     .manual-input {
       margin-top: 15px;
@@ -161,9 +180,15 @@
     <h1>MTKS Торговая Платформа</h1>
 
     <div class="section wallet-section">
-      <div class="seed-section">
-        <textarea id="seed-input" rows="3" placeholder="Введите seed-фразу (12 или 15 слов)"></textarea>
-        <button id="connect-seed">🔑 Подключить кошелёк</button>
+      <div class="auth-buttons">
+        <button id="connect-wx" class="btn-wx">🔐 Войти через WX Network (email/пароль)</button>
+        <button id="show-seed" class="btn-seed">🔑 Вход по seed-фразе</button>
+      </div>
+      
+      <div id="seed-section" class="seed-section">
+        <strong>Введите seed-фразу (12 или 15 слов):</strong>
+        <textarea id="seed-input" rows="3" placeholder="Введите seed-фразу"></textarea>
+        <button id="connect-seed">Подключить</button>
       </div>
       
       <div class="manual-input">
@@ -175,8 +200,9 @@
       
       <div id="wallet-info" class="wallet-info" style="display: none;"></div>
       <div class="info-note">
-        🔑 Seed-фраза нужна только для покупки/продажи. Она не сохраняется.<br>
-        📝 Для просмотра баланса достаточно ввести Waves-адрес.
+        🔐 WX Network: вход по email/паролю (откроется новое окно)<br>
+        🔑 Seed-фраза: для программных кошельков<br>
+        📝 Ручной ввод: только просмотр баланса
       </div>
     </div>
 
@@ -334,7 +360,16 @@
       document.getElementById('sell-total').textContent = (sellAmt * currentPrices.sell).toFixed(6);
     }
 
-    // Подключение по seed
+    // ========== ВХОД ЧЕРЕЗ WX NETWORK (EMAIL/ПАРОЛЬ) ==========
+    function connectWX() {
+      // WX Network использует специальный URL для авторизации
+      // Открываем окно входа, после успеха возвращаем адрес
+      const wxWindow = window.open('https://wx.network/login', 'WXLogin', 'width=500,height=600');
+      // В реальном приложении нужен обработчик возврата, но для простоты предлагаем пользователю ввести адрес вручную
+      alert('Войдите в WX Network в открывшемся окне, затем скопируйте свой Waves-адрес и вставьте его в поле ниже');
+    }
+
+    // ========== ВХОД ПО SEED-ФРАЗЕ ==========
     function connectSeed() {
       const seed = document.getElementById('seed-input').value.trim();
       if (!seed) { alert('Введите seed-фразу'); return; }
@@ -345,7 +380,7 @@
         seedConnected = true;
         tempSeed = seed;
         document.getElementById('wallet-info').style.display = 'block';
-        document.getElementById('wallet-info').innerHTML = `✅ Подключён: ${currentAddress.slice(0,8)}...${currentAddress.slice(-6)}<br>🔓 Транзакции доступны`;
+        document.getElementById('wallet-info').innerHTML = `✅ Подключён по seed: ${currentAddress.slice(0,8)}...${currentAddress.slice(-6)}<br>🔓 Транзакции доступны`;
         updateUI();
       } catch(e) { alert('Неверная seed-фраза'); }
     }
@@ -361,11 +396,11 @@
       seedConnected = false;
       tempSeed = '';
       document.getElementById('wallet-info').style.display = 'block';
-      document.getElementById('wallet-info').innerHTML = `✅ Просмотр: ${addr.slice(0,8)}...${addr.slice(-6)}<br>⚠️ Для покупки/продажи введите seed-фразу`;
+      document.getElementById('wallet-info').innerHTML = `✅ Просмотр: ${addr.slice(0,8)}...${addr.slice(-6)}<br>⚠️ Для покупки/продажи используйте WX Network или seed-фразу`;
       updateUI();
     }
 
-    // Покупка
+    // ========== ПОКУПКА ==========
     async function buy() {
       const amount = parseFloat(document.getElementById('buy-amount').value);
       if (!amount || amount <= 0) { setStatus('buy-status', 'Введите количество', 'error'); return; }
@@ -396,7 +431,7 @@
       } catch(e) { setStatus('buy-status', `❌ ${e.message}`, 'error'); }
     }
 
-    // Продажа
+    // ========== ПРОДАЖА ==========
     async function sell() {
       const amount = parseFloat(document.getElementById('sell-amount').value);
       if (!amount || amount <= 0) { setStatus('sell-status', 'Введите количество', 'error'); return; }
@@ -426,8 +461,15 @@
       } catch(e) { setStatus('sell-status', `❌ ${e.message}`, 'error'); }
     }
 
+    // Показать/скрыть seed-секцию
+    document.getElementById('show-seed').addEventListener('click', () => {
+      const sec = document.getElementById('seed-section');
+      sec.style.display = sec.style.display === 'none' ? 'block' : 'none';
+    });
+
     function init() {
       updatePrices();
+      document.getElementById('connect-wx').addEventListener('click', connectWX);
       document.getElementById('connect-seed').addEventListener('click', connectSeed);
       document.getElementById('connect-wallet').addEventListener('click', connectManual);
       document.getElementById('refresh-prices').addEventListener('click', () => currentAddress ? updateUI() : updatePrices());
@@ -435,8 +477,8 @@
         autoUpdate = !autoUpdate;
         document.getElementById('toggle-auto-update').textContent = autoUpdate ? 'Отключить автообновление' : 'Включить автообновление';
       });
-      document.getElementById('buy-amount').addEventListener('input', () => { updateTotals(); });
-      document.getElementById('sell-amount').addEventListener('input', () => { updateTotals(); });
+      document.getElementById('buy-amount').addEventListener('input', updateTotals);
+      document.getElementById('sell-amount').addEventListener('input', updateTotals);
       document.getElementById('buy-button').addEventListener('click', buy);
       document.getElementById('sell-button').addEventListener('click', sell);
       updateInterval = setInterval(() => { if (autoUpdate && currentAddress) updateUI(); else if (autoUpdate) updatePrices(); }, 15000);
