@@ -351,6 +351,7 @@
 
     let currentAddress = '';
     let keeperAddress = '';
+    let keeperWallet = null;
     let autoUpdateEnabled = true;
     let priceUpdateInterval = null;
     let currentPrices = { base: 1.05, buy: 1.05, sell: 1.0395 };
@@ -500,29 +501,46 @@
       updateUI();
     }
 
+    // НОВОЕ API для Waves Keeper (KeeperWallet)
     async function connectKeeper() {
       try {
-        if (typeof WavesKeeper === 'undefined') {
-          alert('Waves Keeper не установлен. Установите расширение Waves Keeper для браузера.');
+        // Проверяем наличие KeeperWallet (новое API)
+        if (typeof KeeperWallet === 'undefined') {
+          // Проверяем старое API как запасной вариант
+          if (typeof WavesKeeper !== 'undefined') {
+            alert('Обнаружена старая версия Waves Keeper. Пожалуйста, обновите расширение до последней версии.');
+          } else {
+            alert('Waves Keeper не установлен. Установите расширение Waves Keeper для браузера.');
+          }
           return;
         }
         
-        await WavesKeeper.initialPromise;
-        const connected = await WavesKeeper.connect();
-        if (!connected) throw new Error('Не удалось подключиться');
+        console.log('KeeperWallet найден, пробуем подключиться...');
         
-        const state = await WavesKeeper.publicState();
-        keeperAddress = state.account.address;
+        // Подключаемся к KeeperWallet
+        const wallet = new KeeperWallet();
+        
+        // Получаем информацию о пользователе
+        const user = await wallet.getUser();
+        if (!user || !user.address) {
+          throw new Error('Не удалось получить адрес кошелька');
+        }
+        
+        keeperAddress = user.address;
+        keeperWallet = wallet;
         currentAddress = '';
+        
+        console.log('Подключено через KeeperWallet, адрес:', keeperAddress);
         
         const walletInfo = document.getElementById('wallet-info');
         walletInfo.style.display = 'block';
         walletInfo.innerHTML = `✅ Подключён Waves Keeper: ${keeperAddress.slice(0, 8)}...${keeperAddress.slice(-6)}<br>🔓 Транзакции доступны`;
         
         await updateUI();
+        
       } catch (error) {
         console.error('Ошибка подключения Waves Keeper:', error);
-        alert('Ошибка подключения Waves Keeper');
+        alert(`Ошибка подключения Waves Keeper: ${error.message || 'Не удалось подключиться'}`);
       }
     }
 
@@ -534,7 +552,7 @@
         return;
       }
       
-      if (!keeperAddress) {
+      if (!keeperWallet || !keeperAddress) {
         setStatus('buy-status', 'Сначала подключите Waves Keeper', 'error');
         return;
       }
@@ -563,7 +581,7 @@
           chainId: 87
         };
         
-        const result = await WavesKeeper.invoke(txData);
+        const result = await keeperWallet.invoke(txData);
         setStatus('buy-status', `✅ Куплено ${amount.toFixed(8)} MTKS! ID: ${result.id.slice(0, 8)}...`, 'success');
         setTimeout(() => updateUI(), 3000);
       } catch (error) {
@@ -579,7 +597,7 @@
         return;
       }
       
-      if (!keeperAddress) {
+      if (!keeperWallet || !keeperAddress) {
         setStatus('sell-status', 'Сначала подключите Waves Keeper', 'error');
         return;
       }
@@ -607,7 +625,7 @@
           chainId: 87
         };
         
-        const result = await WavesKeeper.invoke(txData);
+        const result = await keeperWallet.invoke(txData);
         setStatus('sell-status', `✅ Продано ${amount.toFixed(8)} MTKS! ID: ${result.id.slice(0, 8)}...`, 'success');
         setTimeout(() => updateUI(), 3000);
       } catch (error) {
@@ -655,12 +673,13 @@
       
       startAutoUpdate();
       
-      // Проверяем наличие Waves Keeper
       setTimeout(() => {
-        if (typeof WavesKeeper !== 'undefined') {
-          console.log('Waves Keeper обнаружен');
+        if (typeof KeeperWallet !== 'undefined') {
+          console.log('✅ KeeperWallet обнаружен (новое API)');
+        } else if (typeof WavesKeeper !== 'undefined') {
+          console.warn('⚠️ Обнаружено старое API WavesKeeper. Рекомендуется обновить расширение.');
         } else {
-          console.warn('Waves Keeper не установлен');
+          console.warn('❌ Waves Keeper не обнаружен');
         }
       }, 1000);
     }
