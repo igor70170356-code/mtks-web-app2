@@ -288,7 +288,7 @@
     <div class="section wallet-section">
       <h3>Подключение кошелька</h3>
       <div class="wallet-actions">
-        <button id="connect-wx">🔐 Войти через WX Network (email/пароль)</button>
+        <button id="connect-wx">🔐 Войти через WX Network (адрес + пароль)</button>
       </div>
       
       <div class="manual-input">
@@ -300,8 +300,8 @@
       
       <div id="wallet-info" class="wallet-info" style="display: none;"></div>
       <div class="info-note">
-        🔐 WX Network: вход по email/паролю — откроется окно авторизации<br>
-        📝 Ручной ввод: только просмотр баланса (без возможности покупки/продажи)
+        🔐 WX Network: введите адрес и пароль от кошелька — откроется окно авторизации<br>
+        📝 Ручной ввод: только просмотр баланса
       </div>
     </div>
 
@@ -369,19 +369,11 @@
     <div id="connection-error" class="connection-error"></div>
   </div>
 
-  <script type="importmap">
-    {
-      "imports": {
-        "@waves/signer": "https://cdn.skypack.dev/@waves/signer",
-        "@waves.exchange/provider-cloud": "https://cdn.skypack.dev/@waves.exchange/provider-cloud"
-      }
-    }
-  </script>
+  <script src="https://cdn.jsdelivr.net/npm/@waves/waves-transactions@4.2.3/dist/waves-transactions.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@waves/signer@1.0.32/dist/signer.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@waves.exchange/provider-cloud@1.0.8/dist/provider-cloud.umd.js"></script>
 
-  <script type="module">
-    import { Signer } from '@waves/signer';
-    import { ProviderCloud } from '@waves.exchange/provider-cloud';
-
+  <script>
     // ========== КОНФИГУРАЦИЯ ==========
     const CONFIG = {
       NODE_URL: 'https://nodes.wavesnodes.com',
@@ -396,6 +388,7 @@
 
     let currentAddress = '';
     let signer = null;
+    let wxProvider = null;
     let autoUpdateEnabled = true;
     let priceUpdateInterval = null;
     let currentPrices = { base: 1.05, buy: 1.05, sell: 1.0395 };
@@ -529,19 +522,38 @@
 
     // ========== ПОДКЛЮЧЕНИЕ КОШЕЛЬКА ==========
     
-    // Подключение через WX Network (ProviderCloud) — вход по email/паролю
+    // Подключение через WX Network (ProviderCloud) — вход по адресу и паролю
     async function connectWX() {
       try {
-        console.log('Подключение через WX Network (ProviderCloud)...');
+        console.log('Подключение через WX Network...');
         
-        const newSigner = new Signer({ NODE_URL: CONFIG.NODE_URL });
-        // ProviderCloud — облачный провайдер для входа по email/паролю через wx.network[citation:4][citation:5]
-        newSigner.setProvider(new ProviderCloud());
+        // Проверяем загрузку библиотек
+        if (typeof WavesSigner === 'undefined') {
+          console.error('WavesSigner не загружен');
+          showError('Библиотека WavesSigner не загружена. Обновите страницу.');
+          return;
+        }
         
-        // Авторизация — откроется окно wx.network для входа по email/паролю
-        const user = await newSigner.login();
+        if (typeof ProviderCloud === 'undefined') {
+          console.error('ProviderCloud не загружен');
+          showError('Библиотека ProviderCloud не загружена. Обновите страницу.');
+          return;
+        }
+        
+        // Создаём экземпляр Signer
+        const signerInstance = new WavesSigner({ NODE_URL: CONFIG.NODE_URL });
+        
+        // Создаём облачного провайдера для WX Network
+        // ProviderCloud открывает окно wx.network для входа по адресу и паролю
+        const cloudProvider = new ProviderCloud();
+        signerInstance.setProvider(cloudProvider);
+        
+        // Авторизация — откроется окно wx.network
+        // Пользователь вводит адрес кошелька (начинается с 3P...) и пароль
+        const user = await signerInstance.login();
         currentAddress = user.address;
-        signer = newSigner;
+        signer = signerInstance;
+        wxProvider = cloudProvider;
         
         console.log('Подключено через WX Network, адрес:', currentAddress);
         
@@ -554,7 +566,7 @@
       } catch (error) {
         console.error('Ошибка подключения WX Network:', error);
         
-        if (error.message?.includes('rejected') || error.message?.includes('cancelled')) {
+        if (error.message?.includes('rejected') || error.message?.includes('cancelled') || error.message?.includes('closed')) {
           alert('Вход в WX Network не выполнен или отменён пользователем.');
         } else {
           alert(`Ошибка подключения WX Network: ${error.message || 'Не удалось подключиться'}`);
@@ -572,6 +584,7 @@
       
       currentAddress = address;
       signer = null;
+      wxProvider = null;
       const walletInfo = document.getElementById('wallet-info');
       walletInfo.style.display = 'block';
       walletInfo.innerHTML = `✅ Подключён (только просмотр): ${address.slice(0, 8)}...${address.slice(-6)}<br>⚠️ Для покупки/продажи используйте WX Network`;
@@ -604,7 +617,6 @@
       setStatus('buy-status', 'Подтвердите транзакцию в окне WX Network...', 'pending');
       
       try {
-        // Используем signer.invoke().broadcast() — стандартный способ[citation:1][citation:2][citation:3]
         const [tx] = await signer
           .invoke({
             dApp: CONFIG.CONTRACT_ID,
@@ -698,9 +710,16 @@
       document.getElementById('sell-button').addEventListener('click', executeSell);
       
       startAutoUpdate();
+      
+      // Проверка загрузки библиотек
+      setTimeout(() => {
+        if (typeof WavesSigner !== 'undefined') console.log('✅ WavesSigner загружен');
+        if (typeof ProviderCloud !== 'undefined') console.log('✅ ProviderCloud загружен');
+      }, 500);
     }
     
-    init();
+    // Ждём загрузки всех скриптов
+    window.addEventListener('load', init);
   </script>
 </body>
 </html>
