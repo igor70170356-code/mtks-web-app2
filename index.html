@@ -70,6 +70,24 @@
       font-weight: bold;
     }
 
+    .seed-section {
+      margin-top: 15px;
+      padding: 15px;
+      background: #fff3cd;
+      border-radius: 8px;
+      border: 1px solid #ffc107;
+    }
+
+    .seed-section textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+
     .wallet-info {
       margin-top: 10px;
       padding: 10px;
@@ -260,15 +278,19 @@
     <h1>MTKS Торговая Платформа</h1>
 
     <div class="section wallet-section">
-      <h3>Подключение кошелька Waves</h3>
+      <h3>Подключение кошелька</h3>
       <div class="wallet-input">
         <input type="text" id="wallet-address" placeholder="Введите адрес Waves (начинается с 3P...)" value="">
-        <button id="connect-wallet">Подключить</button>
-        <button id="connect-keeper" style="background:#6f42c1;">🔑 Подключить Keeper Wallet</button>
+        <button id="connect-wallet">Показать баланс</button>
       </div>
       <div id="wallet-info" class="wallet-info" style="display: none;"></div>
+      
+      <div class="seed-section">
+        <strong>🔐 Для покупки/продажи введите seed-фразу:</strong>
+        <textarea id="seed-input" rows="3" placeholder="Введите seed-фразу (12 слов)"></textarea>
+      </div>
       <div class="info-note">
-        🔐 Введите адрес вручную или подключите Keeper Wallet для транзакций
+        ⚠️ Seed-фраза не сохраняется и никуда не отправляется. Транзакция подписывается в вашем браузере.
       </div>
     </div>
 
@@ -336,6 +358,8 @@
     <div id="connection-error" class="connection-error"></div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@waves/waves-transactions@4.2.3/dist/waves-transactions.umd.js"></script>
+
   <script>
     // ========== КОНФИГУРАЦИЯ ==========
     const CONFIG = {
@@ -350,7 +374,6 @@
     };
 
     let currentAddress = '';
-    let keeperAddress = '';
     let autoUpdateEnabled = true;
     let priceUpdateInterval = null;
     let currentPrices = { base: 1.05, buy: 1.05, sell: 1.0395 };
@@ -436,8 +459,7 @@
     }
 
     async function updateUI() {
-      const address = keeperAddress || currentAddress;
-      if (!address) {
+      if (!currentAddress) {
         document.getElementById('buy-button').disabled = true;
         document.getElementById('sell-button').disabled = true;
         return;
@@ -445,7 +467,7 @@
 
       try {
         updatePricesInUI();
-        const balances = await fetchBalances(address);
+        const balances = await fetchBalances(currentAddress);
         document.getElementById('mtks-balance').textContent = balances.mtks.toFixed(8);
         document.getElementById('rome-balance').textContent = balances.rome.toFixed(6);
         document.getElementById('waves-balance').textContent = balances.waves.toFixed(8);
@@ -491,55 +513,12 @@
         return;
       }
       
-      keeperAddress = '';
       currentAddress = address;
       const walletInfo = document.getElementById('wallet-info');
       walletInfo.style.display = 'block';
-      walletInfo.innerHTML = `✅ Подключён (только просмотр): ${address.slice(0, 8)}...${address.slice(-6)}<br>⚠️ Для покупки/продажи нажмите "Подключить Keeper Wallet"`;
+      walletInfo.innerHTML = `✅ Подключён: ${address.slice(0, 8)}...${address.slice(-6)}`;
       
       updateUI();
-    }
-
-    // Правильное подключение к Keeper Wallet
-    async function connectKeeper() {
-      try {
-        // Проверяем наличие глобального объекта KeeperWallet [citation:7][citation:10]
-        if (typeof KeeperWallet === 'undefined') {
-          alert('Keeper Wallet не установлен. Установите расширение Keeper Wallet для браузера.');
-          return;
-        }
-        
-        console.log('Keeper Wallet найден, пробуем подключиться...');
-        
-        // Получаем публичное состояние (этот запрос вызовет всплывающее окно с запросом доступа) [citation:7]
-        // Keeper Wallet API: publicState() возвращает информацию о кошельке, если сайт доверенный
-        const state = await KeeperWallet.publicState();
-        
-        if (!state || !state.account || !state.account.address) {
-          throw new Error('Не удалось получить адрес кошелька');
-        }
-        
-        keeperAddress = state.account.address;
-        currentAddress = '';
-        
-        console.log('Подключено через Keeper Wallet, адрес:', keeperAddress);
-        
-        const walletInfo = document.getElementById('wallet-info');
-        walletInfo.style.display = 'block';
-        walletInfo.innerHTML = `✅ Подключён Keeper Wallet: ${keeperAddress.slice(0, 8)}...${keeperAddress.slice(-6)}<br>🔓 Транзакции доступны`;
-        
-        await updateUI();
-        
-      } catch (error) {
-        console.error('Ошибка подключения Keeper Wallet:', error);
-        
-        // Обработка ошибки блокировки сайта пользователем [citation:7]
-        if (error.code === 12 || error.message?.includes('rejected')) {
-          alert('Keeper Wallet: доступ к сайту не разрешён. Разрешите доступ в расширении Keeper Wallet и обновите страницу.');
-        } else {
-          alert(`Ошибка подключения Keeper Wallet: ${error.message || 'Не удалось подключиться'}`);
-        }
-      }
     }
 
     // ========== ТРАНЗАКЦИИ ==========
@@ -550,8 +529,9 @@
         return;
       }
       
-      if (!keeperAddress) {
-        setStatus('buy-status', 'Сначала подключите Keeper Wallet', 'error');
+      const seed = document.getElementById('seed-input').value.trim();
+      if (!seed) {
+        setStatus('buy-status', 'Введите seed-фразу для подписи транзакции', 'error');
         return;
       }
       
@@ -564,7 +544,7 @@
         return;
       }
       
-      setStatus('buy-status', 'Подтвердите транзакцию в Keeper Wallet...', 'pending');
+      setStatus('buy-status', 'Подготовка транзакции...', 'pending');
       
       try {
         const txData = {
@@ -579,8 +559,18 @@
           chainId: 87
         };
         
-        // Используем правильный API Keeper Wallet для подписи и отправки транзакции [citation:7]
-        const result = await KeeperWallet.signAndPublishTransaction(txData);
+        const signedTx = Waves.signTransaction(txData, seed);
+        
+        const response = await fetch(`${CONFIG.NODE_URL}/transactions/broadcast`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(signedTx)
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) throw new Error(result.message || 'Ошибка отправки');
+        
         setStatus('buy-status', `✅ Куплено ${amount.toFixed(8)} MTKS! ID: ${result.id.slice(0, 8)}...`, 'success');
         setTimeout(() => updateUI(), 3000);
       } catch (error) {
@@ -596,8 +586,9 @@
         return;
       }
       
-      if (!keeperAddress) {
-        setStatus('sell-status', 'Сначала подключите Keeper Wallet', 'error');
+      const seed = document.getElementById('seed-input').value.trim();
+      if (!seed) {
+        setStatus('sell-status', 'Введите seed-фразу для подписи транзакции', 'error');
         return;
       }
       
@@ -609,7 +600,7 @@
         return;
       }
       
-      setStatus('sell-status', 'Подтвердите транзакцию в Keeper Wallet...', 'pending');
+      setStatus('sell-status', 'Подготовка транзакции...', 'pending');
       
       try {
         const txData = {
@@ -624,7 +615,18 @@
           chainId: 87
         };
         
-        const result = await KeeperWallet.signAndPublishTransaction(txData);
+        const signedTx = Waves.signTransaction(txData, seed);
+        
+        const response = await fetch(`${CONFIG.NODE_URL}/transactions/broadcast`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(signedTx)
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) throw new Error(result.message || 'Ошибка отправки');
+        
         setStatus('sell-status', `✅ Продано ${amount.toFixed(8)} MTKS! ID: ${result.id.slice(0, 8)}...`, 'success');
         setTimeout(() => updateUI(), 3000);
       } catch (error) {
@@ -638,7 +640,7 @@
       if (priceUpdateInterval) clearInterval(priceUpdateInterval);
       priceUpdateInterval = setInterval(() => {
         if (autoUpdateEnabled) {
-          if (keeperAddress || currentAddress) {
+          if (currentAddress) {
             updateUI();
           } else {
             updatePricesInUI();
@@ -653,9 +655,8 @@
       updatePricesInUI();
       
       document.getElementById('connect-wallet').addEventListener('click', connectWallet);
-      document.getElementById('connect-keeper').addEventListener('click', connectKeeper);
       document.getElementById('refresh-prices').addEventListener('click', () => {
-        if (keeperAddress || currentAddress) {
+        if (currentAddress) {
           updateUI();
         } else {
           updatePricesInUI();
@@ -671,14 +672,6 @@
       document.getElementById('sell-button').addEventListener('click', executeSell);
       
       startAutoUpdate();
-      
-      setTimeout(() => {
-        if (typeof KeeperWallet !== 'undefined') {
-          console.log('✅ Keeper Wallet обнаружен');
-        } else {
-          console.warn('❌ Keeper Wallet не обнаружен');
-        }
-      }, 1000);
     }
     
     init();
