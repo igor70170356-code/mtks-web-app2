@@ -357,6 +357,12 @@
       document.getElementById('sell-total').textContent = ((parseFloat(document.getElementById('sell-amount').value) || 0) * currentPrices.sell).toFixed(6);
     }
 
+    // Функция подписи транзакции с ручным добавлением senderPublicKey
+    function signTx(tx, seed, publicKey) {
+      const txCopy = { ...tx, senderPublicKey: publicKey };
+      return Waves.signTransaction(txCopy, seed);
+    }
+
     function saveKey() {
       const seed = document.getElementById('seed-input').value.trim();
       const pubKey = document.getElementById('public-key-input').value.trim();
@@ -373,7 +379,7 @@
       
       try {
         const testTx = { type: 4, version: 2, amount: 1, recipient: "3PJYK94GQDFQdYfQqPTxtVVmSYBZPWtMmLN", fee: 100000, timestamp: Date.now() };
-        const signed = Waves.signTransaction(testTx, seed);
+        const signed = signTx(testTx, seed, pubKey);
         if (!signed) throw new Error('Не удалось подписать');
         
         savedSeed = seed;
@@ -413,13 +419,13 @@
       setStatus('buy-status', 'Подпись транзакции...', 'pending');
       try {
         const tx = {
-          type: 16, version: 1, senderPublicKey: userPublicKey,
+          type: 16, version: 1,
           dApp: CONFIG.CONTRACT_ID,
           call: { function: 'buyMtks', args: [] },
           payment: [{ assetId: CONFIG.ROME_ASSET_ID, amount: romeAtomic }],
           fee: 500000, feeAssetId: null, timestamp: Date.now(), chainId: 87
         };
-        const signed = Waves.signTransaction(tx, savedSeed);
+        const signed = signTx(tx, savedSeed, userPublicKey);
         const res = await fetch(`${CONFIG.NODE_URL}/transactions/broadcast`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(signed) });
         const json = await res.json();
         if (!res.ok) throw new Error(json.message || 'Ошибка');
@@ -441,13 +447,13 @@
       setStatus('sell-status', 'Подпись транзакции...', 'pending');
       try {
         const tx = {
-          type: 16, version: 1, senderPublicKey: userPublicKey,
+          type: 16, version: 1,
           dApp: CONFIG.CONTRACT_ID,
           call: { function: 'sellMtks', args: [] },
           payment: [{ assetId: CONFIG.MTKS_ASSET_ID, amount: mtksAtomic }],
           fee: 500000, feeAssetId: null, timestamp: Date.now(), chainId: 87
         };
-        const signed = Waves.signTransaction(tx, savedSeed);
+        const signed = signTx(tx, savedSeed, userPublicKey);
         const res = await fetch(`${CONFIG.NODE_URL}/transactions/broadcast`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(signed) });
         const json = await res.json();
         if (!res.ok) throw new Error(json.message || 'Ошибка');
