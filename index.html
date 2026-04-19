@@ -363,40 +363,39 @@
     }
 
     // ========== ПОЛУЧЕНИЕ АДРЕСА ИЗ SEED ==========
-    // Используем seedToPrivateKey и privateKeyToAddress
-    function getAddressFromSeed(seed) {
+    // Используем подпись транзакции и публичный ключ из подписи
+    async function getAddressFromSeed(seed) {
       try {
-        // Способ 1: через seedToPrivateKey
-        const privateKey = Waves.crypto.seedToPrivateKey(seed);
-        const address = Waves.crypto.privateKeyToAddress(privateKey);
-        return address;
-      } catch(e) {
-        console.log('Способ 1 не сработал:', e);
-        try {
-          // Способ 2: через подпись тестовой транзакции
-          const testTx = {
-            type: 4,
-            version: 2,
-            amount: 0,
-            recipient: "3PJYK94GQDFQdYfQqPTxtVVmSYBZPWtMmLN",
-            fee: 100000,
-            timestamp: Date.now(),
-            senderPublicKey: "1111111111111111111111111111111111111111111111111111111111111111"
-          };
-          const signed = Waves.signTransaction(testTx, seed);
-          // Из подписанной транзакции получаем publicKey, затем address
-          const publicKey = signed.senderPublicKey;
-          const address = Waves.crypto.publicKeyToAddress(publicKey);
-          return address;
-        } catch(e2) {
-          console.error('Не удалось получить адрес из seed:', e2);
-          return null;
+        // Создаём транзакцию, подписываем, получаем publicKey
+        const tx = {
+          type: 4,
+          version: 2,
+          amount: 1,
+          recipient: "3PJYK94GQDFQdYfQqPTxtVVmSYBZPWtMmLN",
+          fee: 100000,
+          timestamp: Date.now(),
+          senderPublicKey: ""
+        };
+        const signed = Waves.signTransaction(tx, seed);
+        const publicKey = signed.senderPublicKey;
+        
+        // Получаем адрес через публичный ключ (есть в библиотеке)
+        // Waves.crypto.publicKeyToAddress может отсутствовать, используем другой метод
+        // Делаем запрос к ноде для получения адреса по публичному ключу
+        const response = await fetch(`${CONFIG.NODE_URL}/utils/address-from-public-key/${publicKey}`);
+        if (response.ok) {
+          const data = await response.json();
+          return data.address;
         }
+        throw new Error('Не удалось получить адрес');
+      } catch(e) {
+        console.error('Ошибка получения адреса:', e);
+        return null;
       }
     }
 
     // ========== ВХОД ПО SEED-ФРАЗЕ ==========
-    function connectSeed() {
+    async function connectSeed() {
       const seed = document.getElementById('seed-input').value.trim();
       if (!seed) { alert('Введите seed-фразу'); return; }
       if (!wavesReady) { alert('Библиотека загружается, подождите'); return; }
@@ -409,14 +408,14 @@
           recipient: "3PJYK94GQDFQdYfQqPTxtVVmSYBZPWtMmLN", 
           fee: 100000, 
           timestamp: Date.now(), 
-          senderPublicKey: "1111111111111111111111111111111111111111111111111111111111111111" 
+          senderPublicKey: ""
         };
         const signed = Waves.signTransaction(testTx, seed);
         if (!signed) throw new Error('Не удалось подписать');
         
         // Получаем адрес
-        const address = getAddressFromSeed(seed);
-        if (!address) throw new Error('Не удалось получить адрес');
+        const address = await getAddressFromSeed(seed);
+        if (!address) throw new Error('Не удалось получить адрес. Введите адрес вручную в поле ниже.');
         
         currentAddress = address;
         seedConnected = true;
@@ -429,11 +428,15 @@
         
       } catch(e) {
         console.error('Ошибка подключения по seed:', e);
-        alert('Неверная seed-фраза');
+        alert('Не удалось получить адрес из seed. Введите Waves-адрес вручную в поле ниже, seed сохранён для транзакций.');
+        // Активируем seed для транзакций, но адрес пользователь введёт вручную
+        tempSeed = seed;
+        seedConnected = true;
+        // Не обновляем UI, ждём ввода адреса
       }
     }
 
-    // Просмотр по адресу
+    // Просмотр по адресу (и сохранение seed для транзакций)
     function connectManual() {
       const addr = document.getElementById('wallet-address').value.trim();
       if (!addr || !addr.startsWith('3P') || addr.length < 35) {
@@ -441,10 +444,12 @@
         return;
       }
       currentAddress = addr;
-      seedConnected = false;
-      tempSeed = '';
+      // Если seed уже введён, сохраняем связь
+      if (!seedConnected && tempSeed) {
+        seedConnected = true;
+      }
       document.getElementById('wallet-info').style.display = 'block';
-      document.getElementById('wallet-info').innerHTML = `✅ Просмотр: ${addr.slice(0,8)}...${addr.slice(-6)}<br>⚠️ Для покупки/продажи введите seed-фразу`;
+      document.getElementById('wallet-info').innerHTML = `✅ Подключён: ${addr.slice(0,8)}...${addr.slice(-6)}<br>${seedConnected ? '🔓 Транзакции доступны' : '⚠️ Для покупки/продажи введите seed-фразу'}`;
       updateUI();
     }
 
@@ -452,7 +457,7 @@
     async function buy() {
       const amount = parseFloat(document.getElementById('buy-amount').value);
       if (!amount || amount <= 0) { setStatus('buy-status', 'Введите количество', 'error'); return; }
-      if (!seedConnected || !tempSeed) { setStatus('buy-status', 'Введите seed-фразу', 'error'); return; }
+      if (!tempSeed) { setStatus('buy-status', 'Введите seed-фразу', 'error'); return; }
       
       const romeAmount = amount * currentPrices.buy;
       const romeAtomic = Math.round(romeAmount * 1000000);
@@ -483,7 +488,7 @@
     async function sell() {
       const amount = parseFloat(document.getElementById('sell-amount').value);
       if (!amount || amount <= 0) { setStatus('sell-status', 'Введите количество', 'error'); return; }
-      if (!seedConnected || !tempSeed) { setStatus('sell-status', 'Введите seed-фразу', 'error'); return; }
+      if (!tempSeed) { setStatus('sell-status', 'Введите seed-фразу', 'error'); return; }
       
       const mtksAtomic = Math.round(amount * 100000000);
       const mtksBal = parseFloat(document.getElementById('mtks-balance').textContent);
