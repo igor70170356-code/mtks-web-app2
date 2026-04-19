@@ -479,4 +479,11 @@
       document.getElementById('refresh-prices').addEventListener('click', updatePrices);
       document.getElementById('refresh-balances').addEventListener('click', updateBalances);
       document.getElementById('buy-amount').addEventListener('input', updateTotals);
-      document.getElementById('sell-amount').addEventListener('input', updat
+      document.getElementById('sell-amount').addEventListener('input', updateTotals);
+      document.getElementById('buy-button').addEventListener('click', buy);
+      document.getElementById('sell-button').addEventListener('click', sell);
+    }
+    window.addEventListener('load', init);
+  </script>
+</body>
+</html>
