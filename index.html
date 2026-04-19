@@ -5,12 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MTKS — Торговля MTKS и Rome</title>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -19,81 +14,67 @@
       min-height: 100vh;
       padding: 20px;
     }
-
     .container {
       max-width: 800px;
       margin: 0 auto;
       background: white;
       border-radius: 12px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
       overflow: hidden;
     }
-
-    h1 {
-      text-align: center;
-      color: #2c3e50;
-      padding: 20px 20px 0;
-      margin-bottom: 20px;
-    }
-
-    .section {
-      padding: 20px;
-      border-bottom: 1px solid #eee;
-    }
-
-    .wallet-section {
-      background: #f8f9fa;
-    }
-
-    .seed-section {
+    h1 { text-align: center; color: #2c3e50; padding: 20px 20px 0; margin-bottom: 20px; }
+    .section { padding: 20px; border-bottom: 1px solid #eee; }
+    .wallet-section { background: #f8f9fa; }
+    .input-block {
       margin-bottom: 15px;
       padding: 15px;
-      background: #fff3cd;
+      background: #e9ecef;
       border-radius: 8px;
-      border: 1px solid #ffc107;
     }
-
-    .seed-section textarea {
+    .input-block label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+    .input-block input, .input-block textarea {
       width: 100%;
       padding: 10px;
       border: 1px solid #ddd;
-      border-radius: 4px;
+      border-radius: 6px;
       font-family: monospace;
       font-size: 14px;
-      margin-top: 10px;
     }
-
-    .seed-section button {
+    .input-block textarea {
+      font-family: monospace;
+      font-size: 14px;
+    }
+    .input-block button {
       margin-top: 10px;
-      background: #6f42c1;
       width: 100%;
+      padding: 12px;
+      background: #6f42c1;
       color: white;
       border: none;
-      padding: 12px;
       border-radius: 6px;
       cursor: pointer;
       font-weight: bold;
     }
-
     .manual-input {
       margin-top: 15px;
       padding: 15px;
       background: #e9ecef;
       border-radius: 8px;
     }
-
     .manual-input .input-group {
       display: flex;
       gap: 10px;
     }
-
     .manual-input input {
       flex: 1;
       padding: 10px;
       border: 1px solid #ddd;
       border-radius: 6px;
     }
-
     .manual-input button {
       width: auto;
       padding: 10px 20px;
@@ -103,7 +84,6 @@
       border-radius: 6px;
       cursor: pointer;
     }
-
     .wallet-info {
       margin-top: 10px;
       padding: 10px;
@@ -112,67 +92,33 @@
       font-size: 0.9em;
       word-break: break-all;
     }
-
     .prices-section {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 15px;
     }
-
     .price-card {
       text-align: center;
       padding: 15px;
       background: #e9ecef;
       border-radius: 8px;
     }
-
-    .price-label {
-      font-weight: bold;
-      color: #495057;
-      margin-bottom: 5px;
-    }
-
-    .price-value {
-      font-size: 1.2em;
-      color: #007bff;
-      font-weight: bold;
-    }
-
-    .last-update {
-      text-align: center;
-      font-size: 0.75em;
-      color: #6c757d;
-      margin-top: 10px;
-    }
-
+    .price-label { font-weight: bold; color: #495057; margin-bottom: 5px; }
+    .price-value { font-size: 1.2em; color: #007bff; font-weight: bold; }
+    .last-update { text-align: center; font-size: 0.75em; color: #6c757d; margin-top: 10px; }
     .trade-section {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 30px;
     }
-
     .trade-card {
       padding: 20px;
       background: #f8f9fa;
       border-radius: 8px;
     }
-
-    .trade-title {
-      text-align: center;
-      margin-bottom: 15px;
-      color: #2c3e50;
-    }
-
-    .input-group {
-      margin-bottom: 15px;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 5px;
-      font-weight: 500;
-    }
-
+    .trade-title { text-align: center; margin-bottom: 15px; color: #2c3e50; }
+    .input-group { margin-bottom: 15px; }
+    label { display: block; margin-bottom: 5px; font-weight: 500; }
     input[type="number"] {
       width: 100%;
       padding: 10px;
@@ -180,7 +126,6 @@
       border-radius: 4px;
       font-size: 1em;
     }
-
     .estimate {
       text-align: center;
       margin: 10px 0;
@@ -188,7 +133,6 @@
       background: #e9ecef;
       border-radius: 4px;
     }
-
     button {
       width: 100%;
       padding: 12px;
@@ -199,12 +143,7 @@
       cursor: pointer;
       font-weight: bold;
     }
-
-    button:disabled {
-      background: #ccc;
-      cursor: not-allowed;
-    }
-
+    button:disabled { background: #ccc; cursor: not-allowed; }
     .status {
       text-align: center;
       padding: 8px;
@@ -212,22 +151,9 @@
       border-radius: 4px;
       font-size: 0.85em;
     }
-
-    .status-success {
-      background: #d4edda;
-      color: #155724;
-    }
-
-    .status-error {
-      background: #f8d7da;
-      color: #721c24;
-    }
-
-    .status-pending {
-      background: #fff3cd;
-      color: #856404;
-    }
-
+    .status-success { background: #d4edda; color: #155724; }
+    .status-error { background: #f8d7da; color: #721c24; }
+    .status-pending { background: #fff3cd; color: #856404; }
     .balance-info {
       background: #e9ecef;
       padding: 10px;
@@ -236,44 +162,12 @@
       display: flex;
       justify-content: space-around;
     }
-
-    .balance-info p {
-      margin: 0;
-      font-weight: bold;
-    }
-
-    .balance-info span {
-      color: #007bff;
-    }
-
-    .controls {
-      display: flex;
-      gap: 10px;
-      margin-top: 15px;
-    }
-
-    .controls button {
-      flex: 1;
-      background: #6c757d;
-    }
-
-    .info-note {
-      text-align: center;
-      font-size: 0.75em;
-      color: #6c757d;
-      margin-top: 10px;
-      padding: 10px;
-    }
-
-    .connection-error {
-      background: #f8d7da;
-      color: #721c24;
-      padding: 10px;
-      text-align: center;
-      border-radius: 8px;
-      margin: 10px 20px;
-      display: none;
-    }
+    .balance-info p { margin: 0; font-weight: bold; }
+    .balance-info span { color: #007bff; }
+    .controls { display: flex; gap: 10px; margin-top: 15px; }
+    .controls button { flex: 1; background: #6c757d; }
+    .info-note { text-align: center; font-size: 0.75em; color: #6c757d; margin-top: 10px; padding: 10px; }
+    .connection-error { background: #f8d7da; color: #721c24; padding: 10px; text-align: center; border-radius: 8px; margin: 10px 20px; display: none; }
   </style>
 </head>
 <body>
@@ -281,23 +175,34 @@
     <h1>MTKS Торговая Платформа</h1>
 
     <div class="section wallet-section">
-      <div class="seed-section">
-        <strong>🔑 Seed-фраза (для подписи транзакций):</strong>
-        <textarea id="seed-input" rows="3" placeholder="Введите seed-фразу (12 или 15 слов)"></textarea>
-        <button id="save-seed">💾 Сохранить seed</button>
+      <div class="input-block">
+        <label>🔑 1. Seed-фраза (для подписи)</label>
+        <textarea id="seed-input" rows="2" placeholder="Введите seed-фразу (12 или 15 слов)"></textarea>
+      </div>
+
+      <div class="input-block">
+        <label>🔐 2. Публичный ключ (64 символа)</label>
+        <input type="text" id="public-key-input" placeholder="Вставьте публичный ключ">
+        <button id="save-key">💾 Сохранить ключ и активировать</button>
+        <div class="info-note" style="margin-top: 8px; background: #fff3cd; border-color: #ffc107;">
+          📌 Где взять публичный ключ?<br>
+          • WX Network: Настройки кошелька → Публичный ключ<br>
+          • Keeper Wallet: Открыть расширение → Настройки → Публичный ключ
+        </div>
       </div>
 
       <div class="manual-input">
         <div class="input-group">
-          <input type="text" id="wallet-address" placeholder="Введите Waves-адрес (3P...) для просмотра баланса">
+          <input type="text" id="wallet-address" placeholder="3. Введите Waves-адрес (3P...) для просмотра баланса">
           <button id="connect-wallet">Показать баланс</button>
         </div>
       </div>
 
       <div id="wallet-info" class="wallet-info" style="display: none;"></div>
       <div class="info-note">
-        🔑 Seed нужен только для покупки/продажи. Адрес вводится отдельно.<br>
-        📝 Баланс обновляется вручную по кнопке, чтобы не перегружать сервер.
+        🔑 Seed и публичный ключ нужны только для подписи транзакций.<br>
+        🔄 Баланс обновляется вручную кнопкой "Обновить баланс".<br>
+        ⚠️ Данные не сохраняются после закрытия страницы.
       </div>
     </div>
 
@@ -365,10 +270,10 @@
 
     let currentAddress = '';
     let savedSeed = '';
+    let userPublicKey = '';
     let currentPrices = { base: 1.05, buy: 1.05, sell: 1.0395 };
     let wavesReady = false;
 
-    // Проверка загрузки библиотеки Waves
     function waitForWaves() {
       if (typeof Waves !== 'undefined') {
         wavesReady = true;
@@ -379,7 +284,6 @@
     }
     waitForWaves();
 
-    // ========== РАСЧЁТ ЦЕНЫ ==========
     function calcPrice() {
       const baseDate = new Date(CONFIG.BASE_DATE);
       const today = new Date();
@@ -408,7 +312,6 @@
       updateTotals();
     }
 
-    // ========== БАЛАНСЫ ==========
     async function fetchBalances(addr) {
       if (!addr) return { mtks: 0, rome: 0, waves: 0 };
       try {
@@ -455,20 +358,33 @@
       document.getElementById('sell-total').textContent = ((parseFloat(document.getElementById('sell-amount').value) || 0) * currentPrices.sell).toFixed(6);
     }
 
-    // ========== ПОДКЛЮЧЕНИЕ ==========
-    function saveSeed() {
+    function saveKey() {
       const seed = document.getElementById('seed-input').value.trim();
+      const pubKey = document.getElementById('public-key-input').value.trim();
+      
       if (!seed) { alert('Введите seed-фразу'); return; }
+      if (!pubKey) { alert('Введите публичный ключ'); return; }
+      if (pubKey.length !== 64) { alert('Публичный ключ должен быть 64 символа'); return; }
+      
       if (!wavesReady) { alert('Библиотека загружается...'); return; }
+      
       try {
         const testTx = { type: 4, version: 2, amount: 1, recipient: "3PJYK94GQDFQdYfQqPTxtVVmSYBZPWtMmLN", fee: 100000, timestamp: Date.now() };
         const signed = Waves.signTransaction(testTx, seed);
         if (!signed) throw new Error('Не удалось подписать');
+        
         savedSeed = seed;
-        document.getElementById('wallet-info').innerHTML += `<br>✅ Seed сохранён.`;
-        if (currentAddress) { document.getElementById('buy-button').disabled = false; document.getElementById('sell-button').disabled = false; }
-        alert('Seed сохранён! Теперь можно покупать и продавать.');
-      } catch (e) { alert('Неверная seed-фраза'); }
+        userPublicKey = pubKey;
+        
+        document.getElementById('wallet-info').innerHTML += `<br>✅ Seed и публичный ключ сохранены.`;
+        if (currentAddress) {
+          document.getElementById('buy-button').disabled = false;
+          document.getElementById('sell-button').disabled = false;
+        }
+        alert('Данные сохранены! Теперь можно покупать и продавать.');
+      } catch (e) { 
+        alert('Неверная seed-фраза'); 
+      }
     }
 
     function connectManual() {
@@ -476,15 +392,14 @@
       if (!addr || !addr.startsWith('3P') || addr.length < 35) { alert('Введите корректный Waves-адрес (3P...)'); return; }
       currentAddress = addr;
       document.getElementById('wallet-info').style.display = 'block';
-      document.getElementById('wallet-info').innerHTML = `✅ Адрес: ${addr.slice(0, 8)}...${addr.slice(-6)}<br>${savedSeed ? '🔓 Транзакции доступны' : '⚠️ Seed не сохранён. Введите seed выше для покупки/продажи.'}`;
+      document.getElementById('wallet-info').innerHTML = `✅ Адрес: ${addr.slice(0, 8)}...${addr.slice(-6)}<br>${savedSeed && userPublicKey ? '🔓 Транзакции доступны' : '⚠️ Введите seed и публичный ключ выше для покупки/продажи.'}`;
       updateBalances();
     }
 
-    // ========== ТРАНЗАКЦИИ ==========
     async function buy() {
       const amount = parseFloat(document.getElementById('buy-amount').value);
       if (!amount || amount <= 0) { setStatus('buy-status', 'Введите количество', 'error'); return; }
-      if (!savedSeed) { setStatus('buy-status', 'Сохраните seed', 'error'); return; }
+      if (!savedSeed || !userPublicKey) { setStatus('buy-status', 'Сохраните seed и публичный ключ', 'error'); return; }
       if (!currentAddress) { setStatus('buy-status', 'Введите адрес', 'error'); return; }
 
       const romeAmount = amount * currentPrices.buy;
@@ -494,11 +409,8 @@
 
       setStatus('buy-status', 'Подпись транзакции...', 'pending');
       try {
-        const seedObj = Waves.Seed.fromExistingPhrase(savedSeed);
-        const publicKey = seedObj.keyPair.publicKey;
-
         const tx = {
-          type: 16, version: 1, senderPublicKey: publicKey,
+          type: 16, version: 1, senderPublicKey: userPublicKey,
           dApp: CONFIG.CONTRACT_ID,
           call: { function: 'buyMtks', args: [] },
           payment: [{ assetId: CONFIG.ROME_ASSET_ID, amount: romeAtomic }],
@@ -516,7 +428,7 @@
     async function sell() {
       const amount = parseFloat(document.getElementById('sell-amount').value);
       if (!amount || amount <= 0) { setStatus('sell-status', 'Введите количество', 'error'); return; }
-      if (!savedSeed) { setStatus('sell-status', 'Сохраните seed', 'error'); return; }
+      if (!savedSeed || !userPublicKey) { setStatus('sell-status', 'Сохраните seed и публичный ключ', 'error'); return; }
       if (!currentAddress) { setStatus('sell-status', 'Введите адрес', 'error'); return; }
 
       const mtksAtomic = Math.round(amount * 100000000);
@@ -525,11 +437,8 @@
 
       setStatus('sell-status', 'Подпись транзакции...', 'pending');
       try {
-        const seedObj = Waves.Seed.fromExistingPhrase(savedSeed);
-        const publicKey = seedObj.keyPair.publicKey;
-
         const tx = {
-          type: 16, version: 1, senderPublicKey: publicKey,
+          type: 16, version: 1, senderPublicKey: userPublicKey,
           dApp: CONFIG.CONTRACT_ID,
           call: { function: 'sellMtks', args: [] },
           payment: [{ assetId: CONFIG.MTKS_ASSET_ID, amount: mtksAtomic }],
@@ -544,10 +453,9 @@
       } catch (e) { setStatus('sell-status', `❌ ${e.message}`, 'error'); }
     }
 
-    // ========== ИНИЦИАЛИЗАЦИЯ ==========
     function init() {
       updatePrices();
-      document.getElementById('save-seed').addEventListener('click', saveSeed);
+      document.getElementById('save-key').addEventListener('click', saveKey);
       document.getElementById('connect-wallet').addEventListener('click', connectManual);
       document.getElementById('refresh-prices').addEventListener('click', updatePrices);
       document.getElementById('refresh-balances').addEventListener('click', updateBalances);
