@@ -39,8 +39,6 @@
       border-radius: 8px;
       cursor: pointer;
     }
-    .btn-wx { background: #007bff; color: white; }
-    .btn-wx:hover { background: #0056b3; }
     .btn-seed { background: #6f42c1; color: white; }
     .btn-seed:hover { background: #5a32a3; }
     .seed-section {
@@ -364,6 +362,39 @@
       document.getElementById('sell-total').textContent = (sellAmt * currentPrices.sell).toFixed(6);
     }
 
+    // ========== ПОЛУЧЕНИЕ АДРЕСА ИЗ SEED ==========
+    // Используем seedToPrivateKey и privateKeyToAddress
+    function getAddressFromSeed(seed) {
+      try {
+        // Способ 1: через seedToPrivateKey
+        const privateKey = Waves.crypto.seedToPrivateKey(seed);
+        const address = Waves.crypto.privateKeyToAddress(privateKey);
+        return address;
+      } catch(e) {
+        console.log('Способ 1 не сработал:', e);
+        try {
+          // Способ 2: через подпись тестовой транзакции
+          const testTx = {
+            type: 4,
+            version: 2,
+            amount: 0,
+            recipient: "3PJYK94GQDFQdYfQqPTxtVVmSYBZPWtMmLN",
+            fee: 100000,
+            timestamp: Date.now(),
+            senderPublicKey: "1111111111111111111111111111111111111111111111111111111111111111"
+          };
+          const signed = Waves.signTransaction(testTx, seed);
+          // Из подписанной транзакции получаем publicKey, затем address
+          const publicKey = signed.senderPublicKey;
+          const address = Waves.crypto.publicKeyToAddress(publicKey);
+          return address;
+        } catch(e2) {
+          console.error('Не удалось получить адрес из seed:', e2);
+          return null;
+        }
+      }
+    }
+
     // ========== ВХОД ПО SEED-ФРАЗЕ ==========
     function connectSeed() {
       const seed = document.getElementById('seed-input').value.trim();
@@ -372,15 +403,20 @@
       
       try {
         // Проверяем seed через подпись тестовой транзакции
-        const testTx = { type: 4, version: 2, amount: 1, recipient: "3PJYK94GQDFQdYfQqPTxtVVmSYBZPWtMmLN", fee: 100000, timestamp: Date.now(), senderPublicKey: "1111111111111111111111111111111111111111111111111111111111111111" };
+        const testTx = { 
+          type: 4, version: 2, 
+          amount: 1, 
+          recipient: "3PJYK94GQDFQdYfQqPTxtVVmSYBZPWtMmLN", 
+          fee: 100000, 
+          timestamp: Date.now(), 
+          senderPublicKey: "1111111111111111111111111111111111111111111111111111111111111111" 
+        };
         const signed = Waves.signTransaction(testTx, seed);
         if (!signed) throw new Error('Не удалось подписать');
         
-        // Получаем адрес из seed (через подпись)
-        const tempTx = { type: 4, version: 2, amount: 0, recipient: "3PJYK94GQDFQdYfQqPTxtVVmSYBZPWtMmLN", fee: 100000, timestamp: Date.now(), senderPublicKey: "1111111111111111111111111111111111111111111111111111111111111111" };
-        const signedTemp = Waves.signTransaction(tempTx, seed);
-        // Адрес можно получить из подписанной транзакции
-        const address = Waves.crypto.publicKeyToAddress(signedTemp.senderPublicKey);
+        // Получаем адрес
+        const address = getAddressFromSeed(seed);
+        if (!address) throw new Error('Не удалось получить адрес');
         
         currentAddress = address;
         seedConnected = true;
@@ -392,7 +428,7 @@
         updateUI();
         
       } catch(e) {
-        console.error(e);
+        console.error('Ошибка подключения по seed:', e);
         alert('Неверная seed-фраза');
       }
     }
