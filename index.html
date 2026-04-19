@@ -25,29 +25,12 @@
     h1 { text-align: center; color: #2c3e50; padding: 20px 20px 0; margin-bottom: 20px; }
     .section { padding: 20px; border-bottom: 1px solid #eee; }
     .wallet-section { background: #f8f9fa; }
-    .auth-buttons {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-    }
-    .auth-buttons button {
-      flex: 1;
-      padding: 12px;
-      font-weight: bold;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-    .btn-seed { background: #6f42c1; color: white; }
-    .btn-seed:hover { background: #5a32a3; }
     .seed-section {
-      margin-top: 15px;
+      margin-bottom: 15px;
       padding: 15px;
       background: #fff3cd;
       border-radius: 8px;
       border: 1px solid #ffc107;
-      display: none;
     }
     .seed-section textarea {
       width: 100%;
@@ -62,6 +45,12 @@
       margin-top: 10px;
       background: #6f42c1;
       width: 100%;
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
     }
     .manual-input {
       margin-top: 15px;
@@ -179,27 +168,23 @@
     <h1>MTKS Торговая Платформа</h1>
 
     <div class="section wallet-section">
-      <div class="auth-buttons">
-        <button id="show-seed" class="btn-seed">🔑 Вход по seed-фразе</button>
-      </div>
-      
-      <div id="seed-section" class="seed-section">
-        <strong>Введите seed-фразу (12 или 15 слов):</strong>
-        <textarea id="seed-input" rows="3" placeholder="Введите seed-фразу"></textarea>
-        <button id="connect-seed">Подключить кошелёк</button>
+      <div class="seed-section">
+        <strong>🔑 Seed-фраза (для подписи транзакций):</strong>
+        <textarea id="seed-input" rows="3" placeholder="Введите seed-фразу (12 или 15 слов)"></textarea>
+        <button id="save-seed">💾 Сохранить seed</button>
       </div>
       
       <div class="manual-input">
         <div class="input-group">
-          <input type="text" id="wallet-address" placeholder="Или введите Waves-адрес для просмотра баланса">
+          <input type="text" id="wallet-address" placeholder="Введите Waves-адрес (3P...) для просмотра баланса">
           <button id="connect-wallet">Показать баланс</button>
         </div>
       </div>
       
       <div id="wallet-info" class="wallet-info" style="display: none;"></div>
       <div class="info-note">
-        🔑 Seed-фраза нужна для покупки/продажи. Она не сохраняется.<br>
-        📝 Для просмотра баланса достаточно ввести Waves-адрес.
+        🔑 Seed нужен только для покупки/продажи. Адрес вводится отдельно.<br>
+        📝 Баланс показывается по введённому адресу.
       </div>
     </div>
 
@@ -266,8 +251,7 @@
     };
 
     let currentAddress = '';
-    let seedConnected = false;
-    let tempSeed = '';
+    let savedSeed = '';
     let autoUpdate = true;
     let updateInterval = null;
     let currentPrices = { base: 1.05, buy: 1.05, sell: 1.0395 };
@@ -343,8 +327,8 @@
       document.getElementById('mtks-balance').textContent = bal.mtks.toFixed(8);
       document.getElementById('rome-balance').textContent = bal.rome.toFixed(6);
       document.getElementById('waves-balance').textContent = bal.waves.toFixed(8);
-      document.getElementById('buy-button').disabled = !seedConnected;
-      document.getElementById('sell-button').disabled = !seedConnected;
+      document.getElementById('buy-button').disabled = !savedSeed;
+      document.getElementById('sell-button').disabled = !savedSeed;
     }
 
     function setStatus(el, msg, type) {
@@ -362,40 +346,8 @@
       document.getElementById('sell-total').textContent = (sellAmt * currentPrices.sell).toFixed(6);
     }
 
-    // ========== ПОЛУЧЕНИЕ АДРЕСА ИЗ SEED ==========
-    // Используем подпись транзакции и публичный ключ из подписи
-    async function getAddressFromSeed(seed) {
-      try {
-        // Создаём транзакцию, подписываем, получаем publicKey
-        const tx = {
-          type: 4,
-          version: 2,
-          amount: 1,
-          recipient: "3PJYK94GQDFQdYfQqPTxtVVmSYBZPWtMmLN",
-          fee: 100000,
-          timestamp: Date.now(),
-          senderPublicKey: ""
-        };
-        const signed = Waves.signTransaction(tx, seed);
-        const publicKey = signed.senderPublicKey;
-        
-        // Получаем адрес через публичный ключ (есть в библиотеке)
-        // Waves.crypto.publicKeyToAddress может отсутствовать, используем другой метод
-        // Делаем запрос к ноде для получения адреса по публичному ключу
-        const response = await fetch(`${CONFIG.NODE_URL}/utils/address-from-public-key/${publicKey}`);
-        if (response.ok) {
-          const data = await response.json();
-          return data.address;
-        }
-        throw new Error('Не удалось получить адрес');
-      } catch(e) {
-        console.error('Ошибка получения адреса:', e);
-        return null;
-      }
-    }
-
-    // ========== ВХОД ПО SEED-ФРАЗЕ ==========
-    async function connectSeed() {
+    // Сохранение seed
+    function saveSeed() {
       const seed = document.getElementById('seed-input').value.trim();
       if (!seed) { alert('Введите seed-фразу'); return; }
       if (!wavesReady) { alert('Библиотека загружается, подождите'); return; }
@@ -413,43 +365,29 @@
         const signed = Waves.signTransaction(testTx, seed);
         if (!signed) throw new Error('Не удалось подписать');
         
-        // Получаем адрес
-        const address = await getAddressFromSeed(seed);
-        if (!address) throw new Error('Не удалось получить адрес. Введите адрес вручную в поле ниже.');
-        
-        currentAddress = address;
-        seedConnected = true;
-        tempSeed = seed;
-        
-        const walletInfo = document.getElementById('wallet-info');
-        walletInfo.style.display = 'block';
-        walletInfo.innerHTML = `✅ Подключён по seed: ${currentAddress.slice(0,8)}...${currentAddress.slice(-6)}<br>🔓 Транзакции доступны`;
-        updateUI();
-        
+        savedSeed = seed;
+        document.getElementById('wallet-info').innerHTML += `<br>✅ Seed сохранён. Транзакции доступны.`;
+        if (currentAddress) {
+          document.getElementById('buy-button').disabled = false;
+          document.getElementById('sell-button').disabled = false;
+        }
+        alert('Seed сохранён! Теперь можно покупать и продавать.');
       } catch(e) {
-        console.error('Ошибка подключения по seed:', e);
-        alert('Не удалось получить адрес из seed. Введите Waves-адрес вручную в поле ниже, seed сохранён для транзакций.');
-        // Активируем seed для транзакций, но адрес пользователь введёт вручную
-        tempSeed = seed;
-        seedConnected = true;
-        // Не обновляем UI, ждём ввода адреса
+        console.error(e);
+        alert('Неверная seed-фраза');
       }
     }
 
-    // Просмотр по адресу (и сохранение seed для транзакций)
+    // Просмотр по адресу
     function connectManual() {
       const addr = document.getElementById('wallet-address').value.trim();
       if (!addr || !addr.startsWith('3P') || addr.length < 35) {
-        alert('Введите корректный Waves-адрес');
+        alert('Введите корректный Waves-адрес (начинается с 3P...)');
         return;
       }
       currentAddress = addr;
-      // Если seed уже введён, сохраняем связь
-      if (!seedConnected && tempSeed) {
-        seedConnected = true;
-      }
       document.getElementById('wallet-info').style.display = 'block';
-      document.getElementById('wallet-info').innerHTML = `✅ Подключён: ${addr.slice(0,8)}...${addr.slice(-6)}<br>${seedConnected ? '🔓 Транзакции доступны' : '⚠️ Для покупки/продажи введите seed-фразу'}`;
+      document.getElementById('wallet-info').innerHTML = `✅ Адрес: ${addr.slice(0,8)}...${addr.slice(-6)}<br>${savedSeed ? '🔓 Транзакции доступны' : '⚠️ Seed не сохранён. Введите seed выше для покупки/продажи.'}`;
       updateUI();
     }
 
@@ -457,7 +395,8 @@
     async function buy() {
       const amount = parseFloat(document.getElementById('buy-amount').value);
       if (!amount || amount <= 0) { setStatus('buy-status', 'Введите количество', 'error'); return; }
-      if (!tempSeed) { setStatus('buy-status', 'Введите seed-фразу', 'error'); return; }
+      if (!savedSeed) { setStatus('buy-status', 'Сначала сохраните seed-фразу', 'error'); return; }
+      if (!currentAddress) { setStatus('buy-status', 'Сначала введите Waves-адрес', 'error'); return; }
       
       const romeAmount = amount * currentPrices.buy;
       const romeAtomic = Math.round(romeAmount * 1000000);
@@ -473,7 +412,7 @@
           payment: [{ assetId: CONFIG.ROME_ASSET_ID, amount: romeAtomic }],
           fee: 500000, feeAssetId: null, timestamp: Date.now(), chainId: 87
         };
-        const signed = Waves.signTransaction(tx, tempSeed);
+        const signed = Waves.signTransaction(tx, savedSeed);
         const res = await fetch(`${CONFIG.NODE_URL}/transactions/broadcast`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(signed)
         });
@@ -488,7 +427,8 @@
     async function sell() {
       const amount = parseFloat(document.getElementById('sell-amount').value);
       if (!amount || amount <= 0) { setStatus('sell-status', 'Введите количество', 'error'); return; }
-      if (!tempSeed) { setStatus('sell-status', 'Введите seed-фразу', 'error'); return; }
+      if (!savedSeed) { setStatus('sell-status', 'Сначала сохраните seed-фразу', 'error'); return; }
+      if (!currentAddress) { setStatus('sell-status', 'Сначала введите Waves-адрес', 'error'); return; }
       
       const mtksAtomic = Math.round(amount * 100000000);
       const mtksBal = parseFloat(document.getElementById('mtks-balance').textContent);
@@ -503,7 +443,7 @@
           payment: [{ assetId: CONFIG.MTKS_ASSET_ID, amount: mtksAtomic }],
           fee: 500000, feeAssetId: null, timestamp: Date.now(), chainId: 87
         };
-        const signed = Waves.signTransaction(tx, tempSeed);
+        const signed = Waves.signTransaction(tx, savedSeed);
         const res = await fetch(`${CONFIG.NODE_URL}/transactions/broadcast`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(signed)
         });
@@ -514,15 +454,9 @@
       } catch(e) { setStatus('sell-status', `❌ ${e.message}`, 'error'); }
     }
 
-    // Показать/скрыть seed-секцию
-    document.getElementById('show-seed').addEventListener('click', () => {
-      const sec = document.getElementById('seed-section');
-      sec.style.display = sec.style.display === 'none' ? 'block' : 'none';
-    });
-
     function init() {
       updatePrices();
-      document.getElementById('connect-seed').addEventListener('click', connectSeed);
+      document.getElementById('save-seed').addEventListener('click', saveSeed);
       document.getElementById('connect-wallet').addEventListener('click', connectManual);
       document.getElementById('refresh-prices').addEventListener('click', () => currentAddress ? updateUI() : updatePrices());
       document.getElementById('toggle-auto-update').addEventListener('click', () => {
