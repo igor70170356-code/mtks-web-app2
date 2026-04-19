@@ -360,7 +360,9 @@
     // Функция подписи транзакции с ручным добавлением senderPublicKey
     function signTx(tx, seed, publicKey) {
       const txCopy = { ...tx, senderPublicKey: publicKey };
-      return Waves.signTransaction(txCopy, seed);
+      const signed = Waves.signTransaction(txCopy, seed);
+      if (!signed) throw new Error('Не удалось подписать');
+      return signed;
     }
 
     function saveKey() {
@@ -385,14 +387,15 @@
         savedSeed = seed;
         userPublicKey = pubKey;
         
-        document.getElementById('wallet-info').innerHTML += `<br>✅ Seed и публичный ключ сохранены.`;
+        const walletInfo = document.getElementById('wallet-info');
+        walletInfo.innerHTML += `<br>✅ Seed и публичный ключ сохранены.`;
         if (currentAddress) {
           document.getElementById('buy-button').disabled = false;
           document.getElementById('sell-button').disabled = false;
         }
         alert('Данные сохранены! Теперь можно покупать и продавать.');
       } catch (e) { 
-        alert('Неверная seed-фраза'); 
+        alert('Неверная seed-фраза или публичный ключ'); 
       }
     }
 
@@ -400,8 +403,9 @@
       const addr = document.getElementById('wallet-address').value.trim();
       if (!addr || !addr.startsWith('3P') || addr.length < 35) { alert('Введите корректный Waves-адрес (3P...)'); return; }
       currentAddress = addr;
-      document.getElementById('wallet-info').style.display = 'block';
-      document.getElementById('wallet-info').innerHTML = `✅ Адрес: ${addr.slice(0, 8)}...${addr.slice(-6)}<br>${savedSeed && userPublicKey ? '🔓 Транзакции доступны' : '⚠️ Введите seed и публичный ключ выше для покупки/продажи.'}`;
+      const walletInfo = document.getElementById('wallet-info');
+      walletInfo.style.display = 'block';
+      walletInfo.innerHTML = `✅ Адрес: ${addr.slice(0, 8)}...${addr.slice(-6)}<br>${savedSeed && userPublicKey ? '🔓 Транзакции доступны' : '⚠️ Введите seed и публичный ключ выше для покупки/продажи.'}`;
       updateBalances();
     }
 
@@ -431,7 +435,10 @@
         if (!res.ok) throw new Error(json.message || 'Ошибка');
         setStatus('buy-status', `✅ Куплено! ID: ${json.id.slice(0, 8)}...`, 'success');
         setTimeout(() => updateBalances(), 3000);
-      } catch (e) { setStatus('buy-status', `❌ ${e.message}`, 'error'); }
+      } catch (e) { 
+        console.error(e);
+        setStatus('buy-status', `❌ ${e.message}`, 'error'); 
+      }
     }
 
     async function sell() {
@@ -459,7 +466,10 @@
         if (!res.ok) throw new Error(json.message || 'Ошибка');
         setStatus('sell-status', `✅ Продано! ID: ${json.id.slice(0, 8)}...`, 'success');
         setTimeout(() => updateBalances(), 3000);
-      } catch (e) { setStatus('sell-status', `❌ ${e.message}`, 'error'); }
+      } catch (e) { 
+        console.error(e);
+        setStatus('sell-status', `❌ ${e.message}`, 'error'); 
+      }
     }
 
     function init() {
@@ -469,11 +479,4 @@
       document.getElementById('refresh-prices').addEventListener('click', updatePrices);
       document.getElementById('refresh-balances').addEventListener('click', updateBalances);
       document.getElementById('buy-amount').addEventListener('input', updateTotals);
-      document.getElementById('sell-amount').addEventListener('input', updateTotals);
-      document.getElementById('buy-button').addEventListener('click', buy);
-      document.getElementById('sell-button').addEventListener('click', sell);
-    }
-    window.addEventListener('load', init);
-  </script>
-</body>
-</html>
+      document.getElementById('sell-amount').addEventListener('input', updat
