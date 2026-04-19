@@ -359,8 +359,7 @@
           amount: 1, 
           recipient: "3PJYK94GQDFQdYfQqPTxtVVmSYBZPWtMmLN", 
           fee: 100000, 
-          timestamp: Date.now(), 
-          senderPublicKey: ""
+          timestamp: Date.now()
         };
         const signed = Waves.signTransaction(testTx, seed);
         if (!signed) throw new Error('Не удалось подписать');
@@ -401,26 +400,51 @@
       const romeAmount = amount * currentPrices.buy;
       const romeAtomic = Math.round(romeAmount * 1000000);
       const romeBal = parseFloat(document.getElementById('rome-balance').textContent);
-      if (romeBal < romeAmount) { setStatus('buy-status', `Не хватает Rome`, 'error'); return; }
+      if (romeBal < romeAmount) { setStatus('buy-status', `Не хватает Rome. Нужно: ${romeAmount.toFixed(6)}`, 'error'); return; }
       
       setStatus('buy-status', 'Подпись транзакции...', 'pending');
       try {
+        // Правильный формат транзакции для invoke (type 16)
         const tx = {
-          type: 16, version: 1,
+          type: 16,
+          version: 1,
           dApp: CONFIG.CONTRACT_ID,
-          call: { function: 'buyMtks', args: [] },
-          payment: [{ assetId: CONFIG.ROME_ASSET_ID, amount: romeAtomic }],
-          fee: 500000, feeAssetId: null, timestamp: Date.now(), chainId: 87
+          call: {
+            function: 'buyMtks',
+            args: []
+          },
+          payment: [
+            {
+              assetId: CONFIG.ROME_ASSET_ID,
+              amount: romeAtomic
+            }
+          ],
+          fee: 500000,
+          feeAssetId: null,
+          timestamp: Date.now(),
+          chainId: 87
         };
+        
         const signed = Waves.signTransaction(tx, savedSeed);
-        const res = await fetch(`${CONFIG.NODE_URL}/transactions/broadcast`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(signed)
+        
+        const response = await fetch(`${CONFIG.NODE_URL}/transactions/broadcast`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(signed)
         });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.message);
-        setStatus('buy-status', `✅ Куплено! ID: ${json.id.slice(0,8)}...`, 'success');
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(result.message || 'Ошибка отправки транзакции');
+        }
+        
+        setStatus('buy-status', `✅ Куплено ${amount.toFixed(8)} MTKS! ID: ${result.id.slice(0,8)}...`, 'success');
         setTimeout(() => updateUI(), 3000);
-      } catch(e) { setStatus('buy-status', `❌ ${e.message}`, 'error'); }
+      } catch(e) { 
+        console.error(e);
+        setStatus('buy-status', `❌ ${e.message}`, 'error'); 
+      }
     }
 
     // ========== ПРОДАЖА ==========
@@ -432,26 +456,50 @@
       
       const mtksAtomic = Math.round(amount * 100000000);
       const mtksBal = parseFloat(document.getElementById('mtks-balance').textContent);
-      if (mtksBal < amount) { setStatus('sell-status', `Не хватает MTKS`, 'error'); return; }
+      if (mtksBal < amount) { setStatus('sell-status', `Не хватает MTKS. Нужно: ${amount.toFixed(8)}`, 'error'); return; }
       
       setStatus('sell-status', 'Подпись транзакции...', 'pending');
       try {
         const tx = {
-          type: 16, version: 1,
+          type: 16,
+          version: 1,
           dApp: CONFIG.CONTRACT_ID,
-          call: { function: 'sellMtks', args: [] },
-          payment: [{ assetId: CONFIG.MTKS_ASSET_ID, amount: mtksAtomic }],
-          fee: 500000, feeAssetId: null, timestamp: Date.now(), chainId: 87
+          call: {
+            function: 'sellMtks',
+            args: []
+          },
+          payment: [
+            {
+              assetId: CONFIG.MTKS_ASSET_ID,
+              amount: mtksAtomic
+            }
+          ],
+          fee: 500000,
+          feeAssetId: null,
+          timestamp: Date.now(),
+          chainId: 87
         };
+        
         const signed = Waves.signTransaction(tx, savedSeed);
-        const res = await fetch(`${CONFIG.NODE_URL}/transactions/broadcast`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(signed)
+        
+        const response = await fetch(`${CONFIG.NODE_URL}/transactions/broadcast`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(signed)
         });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.message);
-        setStatus('sell-status', `✅ Продано! ID: ${json.id.slice(0,8)}...`, 'success');
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(result.message || 'Ошибка отправки транзакции');
+        }
+        
+        setStatus('sell-status', `✅ Продано ${amount.toFixed(8)} MTKS! ID: ${result.id.slice(0,8)}...`, 'success');
         setTimeout(() => updateUI(), 3000);
-      } catch(e) { setStatus('sell-status', `❌ ${e.message}`, 'error'); }
+      } catch(e) { 
+        console.error(e);
+        setStatus('sell-status', `❌ ${e.message}`, 'error'); 
+      }
     }
 
     function init() {
