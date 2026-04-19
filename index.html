@@ -63,6 +63,7 @@
     .seed-section button {
       margin-top: 10px;
       background: #6f42c1;
+      width: 100%;
     }
     .manual-input {
       margin-top: 15px;
@@ -181,14 +182,13 @@
 
     <div class="section wallet-section">
       <div class="auth-buttons">
-        <button id="connect-wx" class="btn-wx">🔐 Войти через WX Network (email/пароль)</button>
         <button id="show-seed" class="btn-seed">🔑 Вход по seed-фразе</button>
       </div>
       
       <div id="seed-section" class="seed-section">
         <strong>Введите seed-фразу (12 или 15 слов):</strong>
         <textarea id="seed-input" rows="3" placeholder="Введите seed-фразу"></textarea>
-        <button id="connect-seed">Подключить</button>
+        <button id="connect-seed">Подключить кошелёк</button>
       </div>
       
       <div class="manual-input">
@@ -200,9 +200,8 @@
       
       <div id="wallet-info" class="wallet-info" style="display: none;"></div>
       <div class="info-note">
-        🔐 WX Network: вход по email/паролю (откроется новое окно)<br>
-        🔑 Seed-фраза: для программных кошельков<br>
-        📝 Ручной ввод: только просмотр баланса
+        🔑 Seed-фраза нужна для покупки/продажи. Она не сохраняется.<br>
+        📝 Для просмотра баланса достаточно ввести Waves-адрес.
       </div>
     </div>
 
@@ -277,8 +276,12 @@
     let wavesReady = false;
 
     function waitForWaves() {
-      if (typeof Waves !== 'undefined') { wavesReady = true; console.log('✅ Waves готов'); }
-      else { setTimeout(waitForWaves, 500); }
+      if (typeof Waves !== 'undefined') {
+        wavesReady = true;
+        console.log('✅ Waves готов');
+      } else {
+        setTimeout(waitForWaves, 500);
+      }
     }
     waitForWaves();
 
@@ -348,6 +351,7 @@
 
     function setStatus(el, msg, type) {
       const e = document.getElementById(el);
+      if (!e) return;
       e.textContent = msg;
       e.className = `status status-${type}`;
       setTimeout(() => { if (e.textContent === msg) e.textContent = ''; }, 5000);
@@ -360,29 +364,37 @@
       document.getElementById('sell-total').textContent = (sellAmt * currentPrices.sell).toFixed(6);
     }
 
-    // ========== ВХОД ЧЕРЕЗ WX NETWORK (EMAIL/ПАРОЛЬ) ==========
-    function connectWX() {
-      // WX Network использует специальный URL для авторизации
-      // Открываем окно входа, после успеха возвращаем адрес
-      const wxWindow = window.open('https://wx.network/login', 'WXLogin', 'width=500,height=600');
-      // В реальном приложении нужен обработчик возврата, но для простоты предлагаем пользователю ввести адрес вручную
-      alert('Войдите в WX Network в открывшемся окне, затем скопируйте свой Waves-адрес и вставьте его в поле ниже');
-    }
-
     // ========== ВХОД ПО SEED-ФРАЗЕ ==========
     function connectSeed() {
       const seed = document.getElementById('seed-input').value.trim();
       if (!seed) { alert('Введите seed-фразу'); return; }
       if (!wavesReady) { alert('Библиотека загружается, подождите'); return; }
+      
       try {
-        const obj = Waves.Seed.fromExistingPhrase(seed);
-        currentAddress = obj.address;
+        // Проверяем seed через подпись тестовой транзакции
+        const testTx = { type: 4, version: 2, amount: 1, recipient: "3PJYK94GQDFQdYfQqPTxtVVmSYBZPWtMmLN", fee: 100000, timestamp: Date.now(), senderPublicKey: "1111111111111111111111111111111111111111111111111111111111111111" };
+        const signed = Waves.signTransaction(testTx, seed);
+        if (!signed) throw new Error('Не удалось подписать');
+        
+        // Получаем адрес из seed (через подпись)
+        const tempTx = { type: 4, version: 2, amount: 0, recipient: "3PJYK94GQDFQdYfQqPTxtVVmSYBZPWtMmLN", fee: 100000, timestamp: Date.now(), senderPublicKey: "1111111111111111111111111111111111111111111111111111111111111111" };
+        const signedTemp = Waves.signTransaction(tempTx, seed);
+        // Адрес можно получить из подписанной транзакции
+        const address = Waves.crypto.publicKeyToAddress(signedTemp.senderPublicKey);
+        
+        currentAddress = address;
         seedConnected = true;
         tempSeed = seed;
-        document.getElementById('wallet-info').style.display = 'block';
-        document.getElementById('wallet-info').innerHTML = `✅ Подключён по seed: ${currentAddress.slice(0,8)}...${currentAddress.slice(-6)}<br>🔓 Транзакции доступны`;
+        
+        const walletInfo = document.getElementById('wallet-info');
+        walletInfo.style.display = 'block';
+        walletInfo.innerHTML = `✅ Подключён по seed: ${currentAddress.slice(0,8)}...${currentAddress.slice(-6)}<br>🔓 Транзакции доступны`;
         updateUI();
-      } catch(e) { alert('Неверная seed-фраза'); }
+        
+      } catch(e) {
+        console.error(e);
+        alert('Неверная seed-фраза');
+      }
     }
 
     // Просмотр по адресу
@@ -396,7 +408,7 @@
       seedConnected = false;
       tempSeed = '';
       document.getElementById('wallet-info').style.display = 'block';
-      document.getElementById('wallet-info').innerHTML = `✅ Просмотр: ${addr.slice(0,8)}...${addr.slice(-6)}<br>⚠️ Для покупки/продажи используйте WX Network или seed-фразу`;
+      document.getElementById('wallet-info').innerHTML = `✅ Просмотр: ${addr.slice(0,8)}...${addr.slice(-6)}<br>⚠️ Для покупки/продажи введите seed-фразу`;
       updateUI();
     }
 
@@ -469,7 +481,6 @@
 
     function init() {
       updatePrices();
-      document.getElementById('connect-wx').addEventListener('click', connectWX);
       document.getElementById('connect-seed').addEventListener('click', connectSeed);
       document.getElementById('connect-wallet').addEventListener('click', connectManual);
       document.getElementById('refresh-prices').addEventListener('click', () => currentAddress ? updateUI() : updatePrices());
