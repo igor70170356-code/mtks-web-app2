@@ -181,8 +181,8 @@
       </div>
 
       <div class="input-block">
-        <label>🔐 2. Публичный ключ (44 символа в base58)</label>
-        <input type="text" id="public-key-input" placeholder="Вставьте публичный ключ (пример: 5cqzmxsmFPBHm4tb7D8DMA7s5eutLXTDnnNMQKy2AYxh)">
+        <label>🔐 2. Публичный ключ</label>
+        <input type="text" id="public-key-input" placeholder="Вставьте публичный ключ (40-44 символа)">
         <button id="save-key">💾 Сохранить ключ и активировать</button>
         <div class="info-note" style="margin-top: 8px; background: #fff3cd; border-color: #ffc107;">
           📌 Где взять публичный ключ?<br>
@@ -364,9 +364,8 @@
       if (!seed) { alert('Введите seed-фразу'); return; }
       if (!pubKey) { alert('Введите публичный ключ'); return; }
       
-      // Публичный ключ Waves в base58 может быть от 35 до 44 символов
       if (pubKey.length < 35 || pubKey.length > 44) { 
-        alert('Публичный ключ должен быть 35-44 символа в кодировке base58'); 
+        alert('Публичный ключ должен быть 40-44 символа'); 
         return; 
       }
       
